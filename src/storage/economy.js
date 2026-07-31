@@ -12,7 +12,23 @@ export const JOBS = [
   { id: "wizard",       name: "Wizard",         emoji: "\u{1F9D9}", base: 1200, cooldown: 120 * 60 * 1000, desc: "Top pay, slowest" },
 ];
 
-export const JOB_SWITCH_COOLDOWN = 5 * 60 * 1000; // 5 min to switch jobs
+// Switching cooldowns scale with job tier so you can't hop between high-tier jobs to dodge work cooldowns.
+// Switching to a low/mid tier is fast (5min); switching into the top tiers (knight/wizard) takes longer.
+// Work cooldown is tied to the *user*, not the job — so swapping jobs doesn't reset your shift timer.
+export const JOB_SWITCH_COOLDOWNS = {
+  beggar:     5 * 60 * 1000,
+  farmer:     5 * 60 * 1000,
+  miner:      10 * 60 * 1000,
+  fisher:     15 * 60 * 1000,
+  blacksmith: 20 * 60 * 1000,
+  merchant:   30 * 60 * 1000,
+  knight:     60 * 60 * 1000,
+  wizard:     90 * 60 * 1000,
+};
+
+export function jobSwitchCooldown(targetJobId) {
+  return JOB_SWITCH_COOLDOWNS[targetJobId] || (5 * 60 * 1000);
+}
 
 // ============ SHOP ITEMS ============
 export const ITEMS = [
