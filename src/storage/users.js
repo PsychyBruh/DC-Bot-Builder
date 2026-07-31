@@ -8,40 +8,50 @@ const DATA_FILE = path.join(__dirname, "..", "..", "data", "users.json");
 const users = new Map();
 
 function ensureDefaults(data) {
-  if (!data.balance) data.balance = 1000;
-  if (!data.rep) data.rep = { given: {}, total: 0 };
-  if (!data.streak) data.streak = { count: 0, last: null, daily: 0, dailyLast: null, weekly: 0, weeklyLast: null };
-  if (data.streak && !data.streak.daily) data.streak.daily = 0;
-  if (data.streak && !data.streak.dailyLast) data.streak.dailyLast = null;
-  if (data.streak && !data.streak.weekly) data.streak.weekly = 0;
-  if (data.streak && !data.streak.weeklyLast) data.streak.weeklyLast = null;
-  if (!data.xp) data.xp = 0;
-  if (!data.level) data.level = 0;
-  if (!data.afk) data.afk = null;
-  if (!data.coinsWon) data.coinsWon = 0;
-  if (!data.coinsLost) data.coinsLost = 0;
-  if (!data.triviaScore) data.triviaScore = 0;
-  if (!data.triviaAnswered) data.triviaAnswered = 0;
-  if (!data.duelsWon) data.duelsWon = 0;
-  if (!data.duelsLost) data.duelsLost = 0;
-  if (!data.slotsWon) data.slotsWon = 0;
-  if (!data.privateRoomId) data.privateRoomId = null;
-  if (!data.lastSeen) data.lastSeen = Date.now();
+  // Only default fields that are genuinely missing (undefined).
+  // Never overwrite a legitimate 0 / null with the default — that's how balance got re-seeded to 1000 when a user hit 0.
+  if (data.balance === undefined) data.balance = 1000;
+  if (data.rep === undefined || data.rep === null) data.rep = { given: {}, total: 0 };
+  if (typeof data.rep === "object" && data.rep !== null) {
+    if (data.rep.given === undefined) data.rep.given = {};
+    if (data.rep.total === undefined) data.rep.total = 0;
+  }
+  if (data.streak === undefined || data.streak === null) data.streak = { count: 0, last: null, daily: 0, dailyLast: null, weekly: 0, weeklyLast: null };
+  if (typeof data.streak === "object" && data.streak !== null) {
+    if (data.streak.count === undefined) data.streak.count = 0;
+    if (data.streak.last === undefined) data.streak.last = null;
+    if (data.streak.daily === undefined) data.streak.daily = 0;
+    if (data.streak.dailyLast === undefined) data.streak.dailyLast = null;
+    if (data.streak.weekly === undefined) data.streak.weekly = 0;
+    if (data.streak.weeklyLast === undefined) data.streak.weeklyLast = null;
+  }
+  if (data.xp === undefined) data.xp = 0;
+  if (data.level === undefined) data.level = 0;
+  if (data.afk === undefined) data.afk = null;
+  if (data.coinsWon === undefined) data.coinsWon = 0;
+  if (data.coinsLost === undefined) data.coinsLost = 0;
+  if (data.triviaScore === undefined) data.triviaScore = 0;
+  if (data.triviaAnswered === undefined) data.triviaAnswered = 0;
+  if (data.duelsWon === undefined) data.duelsWon = 0;
+  if (data.duelsLost === undefined) data.duelsLost = 0;
+  if (data.slotsWon === undefined) data.slotsWon = 0;
+  if (data.privateRoomId === undefined) data.privateRoomId = null;
+  if (data.lastSeen === undefined) data.lastSeen = Date.now();
   // economy
-  if (!data.job) data.job = null;
-  if (!data.lastWork) data.lastWork = 0;
-  if (!data.inventory) data.inventory = {};
-  if (!data.boosters) data.boosters = {}; // { coin: until, xp: until, luck: until, shield: until }
-  if (!data.shares) data.shares = 0;
-  if (!data.shareCost) data.shareCost = 0; // avg buy
-  if (!data.jailed) data.jailed = null; // { until, count } when jailed
-  if (!data.stealFails) data.stealFails = 0; // 3 fails => jail
-  if (!data.stealImmune) data.stealImmune = null; // until timestamp
-  if (!data.bountyOnMe) data.bountyOnMe = 0; // total coins bounty on this user
-  if (!data.karma) data.karma = 0;
-  if (!data.property) data.property = null; // property id owned
-  if (!data.jobsWorked) data.jobsWorked = 0;
-  if (!data.giveUsed) data.giveUsed = {}; // { receiverId: amount, receiverId_date: 'YYYY-MM-DD' }
+  if (data.job === undefined) data.job = null;
+  if (data.lastWork === undefined) data.lastWork = 0;
+  if (data.inventory === undefined) data.inventory = {};
+  if (data.boosters === undefined) data.boosters = {};
+  if (data.shares === undefined) data.shares = 0;
+  if (data.shareCost === undefined) data.shareCost = 0;
+  if (data.jailed === undefined) data.jailed = null;
+  if (data.stealFails === undefined) data.stealFails = 0;
+  if (data.stealImmune === undefined) data.stealImmune = null;
+  if (data.bountyOnMe === undefined) data.bountyOnMe = 0;
+  if (data.karma === undefined) data.karma = 0;
+  if (data.property === undefined) data.property = null;
+  if (data.jobsWorked === undefined) data.jobsWorked = 0;
+  if (data.giveUsed === undefined) data.giveUsed = {};
   return data;
 }
 
