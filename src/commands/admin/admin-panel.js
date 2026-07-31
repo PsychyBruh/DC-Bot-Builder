@@ -135,8 +135,7 @@ function buildInfoPanel(guild, settingsKey) {
 export async function handleAdminPanelButton(interaction, { client }) {
   const parts = interaction.customId.split("_");
   const action = parts[1];
-  const key = parts[2];
-  const ts = parts.slice(3).join("_");
+  const key = parts.length > 3 ? parts.slice(2, -1).join("_") : null;
 
   if (action === "home") {
     const panel = buildHomePanel(interaction.guild, client);
