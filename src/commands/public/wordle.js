@@ -1611,26 +1611,26 @@ export async function execute(message) {
   const game = { word, guesses: [], won: false };
   games.set(`${message.channelId}:${message.author.id}`, game);
   const embed = baseEmbed(COLORS.cyan)
-    .setTitle("ðŸŸ©ðŸŸ¨â¬› Wordle")
+    .setTitle("\u{1F7E9}\u{1F7E8}\u{2B1B} Wordle")
     .setDescription(`I've picked a **5-letter word**. Guess it in 6 tries!\n\nType a word to guess.\n\n${renderGuesses(game)}`)
     .setFooter({ text: "Tries left: 6" });
   await message.reply({ embeds: [embed] });
 }
 
 function renderGuesses(game) {
-  if (!game.guesses.length) return "âšªâšªâšªâšªâšª";
+  if (!game.guesses.length) return "\u{26AA} \u{26AA} \u{26AA} \u{26AA} \u{26AA}";
   const lines = game.guesses.map((g) => {
     const chars = [...g.word];
     const target = [...game.word];
-    const result = Array(5).fill("â¬›");
+    const result = Array(5).fill("\u{2B1B}");
     const used = Array(5).fill(false);
     for (let i = 0; i < 5; i++) {
-      if (chars[i] === target[i]) { result[i] = "ðŸŸ©"; used[i] = true; }
+      if (chars[i] === target[i]) { result[i] = "\u{1F7E9}"; used[i] = true; }
     }
     for (let i = 0; i < 5; i++) {
-      if (result[i] === "ðŸŸ©") continue;
+      if (result[i] === "\u{1F7E9}") continue;
       const idx = target.findIndex((t, j) => t === chars[i] && !used[j]);
-      if (idx !== -1) { result[i] = "ðŸŸ¨"; used[idx] = true; }
+      if (idx !== -1) { result[i] = "\u{1F7E8}"; used[idx] = true; }
     }
     return result.join(" ");
   });
@@ -1642,11 +1642,11 @@ export async function handleWordleGuess(message, word) {
   if (!game) return false;
   const guess = word.toUpperCase();
   if (!/^[A-Z]{5}$/.test(guess)) {
-    await message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("âŒ Must be exactly 5 letters.")] });
+    await message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("\u{274C} Must be exactly 5 letters.")] });
     return true;
   }
   if (!WORDS.includes(guess.toLowerCase())) {
-    await message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("âŒ Not in my word list. Try another 5-letter word.")] });
+    await message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("\u{274C} Not in my word list. Try another 5-letter word.")] });
     return true;
   }
   game.guesses.push({ word: guess });
@@ -1654,7 +1654,7 @@ export async function handleWordleGuess(message, word) {
   if (guess === game.word) {
     game.won = true;
     const embed = baseEmbed(COLORS.success)
-      .setTitle("ðŸŽ‰ You got it!")
+      .setTitle("\u{1F389} You got it!")
       .setDescription(`${renderGuesses(game)}\n\nThe word was **${game.word}**. Solved in ${game.guesses.length}/6!`);
     games.delete(`${message.channelId}:${message.author.id}`);
     await message.reply({ embeds: [embed] });
@@ -1662,16 +1662,16 @@ export async function handleWordleGuess(message, word) {
   }
   if (triesLeft <= 0) {
     const embed = baseEmbed(COLORS.danger)
-      .setTitle("ðŸ˜¢ Out of tries!")
+      .setTitle("\u{1F622} Out of tries!")
       .setDescription(`${renderGuesses(game)}\n\nThe word was **${game.word}**.`);
     games.delete(`${message.channelId}:${message.author.id}`);
     await message.reply({ embeds: [embed] });
     return true;
   }
   const embed = baseEmbed(COLORS.cyan)
-    .setTitle("ðŸŸ©ðŸŸ¨â¬› Wordle")
+    .setTitle("\u{1F7E9}\u{1F7E8}\u{2B1B} Wordle")
     .setDescription(`${renderGuesses(game)}\n\nTries left: **${triesLeft}**`)
-    .setFooter({ text: "ðŸŸ© = correct position, ðŸŸ¨ = in word, â¬› = not in word" });
+    .setFooter({ text: "\u{1F7E9} = correct position, \u{1F7E8} = in word, \u{2B1B} = not in word" });
   await message.reply({ embeds: [embed] });
   return true;
 }
