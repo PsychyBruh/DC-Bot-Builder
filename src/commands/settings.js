@@ -1,5 +1,4 @@
-import { PermissionFlagsBits } from "discord.js";
-import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
+import { baseEmbed, COLORS, EMOJIS } from "./utils/embeds.js";
 import { getSettings } from "../storage/serverSettings.js";
 
 export const name = "settings";
