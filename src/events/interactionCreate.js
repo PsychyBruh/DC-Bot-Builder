@@ -49,6 +49,12 @@ export async function execute(interaction, client) {
     return;
   }
 
+  if (id.startsWith("dl_")) {
+    const { handleDuelButton } = await import("../commands/public/duel.js");
+    await handleDuelButton(interaction);
+    return;
+  }
+
   if (id === "g_up" || id === "g_down" || id === "g_left" || id === "g_right") {
     const { handle2048Button } = await import("../commands/public/2048.js");
     await handle2048Button(interaction);
