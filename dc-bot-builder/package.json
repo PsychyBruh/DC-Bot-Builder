@@ -1,0 +1,15 @@
+{
+  "name": "dc-bot-builder",
+  "version": "1.0.0",
+  "description": "DC Bot Builder — an AI Discord server architect powered by Claude",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.26.4",
+    "@anthropic-ai/sdk": "^0.104.1",
+    "dotenv": "^16.4.7"
+  }
+}
