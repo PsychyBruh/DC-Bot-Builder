@@ -111,6 +111,11 @@ client.on("messageCreate", async (message) => {
   const { handleXp } = await import("./commands/utils/xp.js");
   try { await handleXp(message); } catch {}
 
+  const { getRoom, touchRoom } = await import("./storage/privateRooms.js");
+  if (getRoom(message.channelId)) {
+    try { touchRoom(message.channelId); } catch {}
+  }
+
   if (!message.content.startsWith(PREFIX)) {
     try {
       const { handleGuessMessage } = await import("./commands/public/guess.js");
