@@ -113,6 +113,14 @@ client.on("messageCreate", async (message) => {
       const { handleGuessMessage } = await import("./commands/public/guess.js");
       await handleGuessMessage(message);
     } catch {}
+    try {
+      const { handleWordleGuess } = await import("./commands/public/wordle.js");
+      await handleWordleGuess(message, message.content.trim());
+    } catch {}
+    try {
+      const { handleWordChainGuess } = await import("./commands/public/word-chain.js");
+      await handleWordChainGuess(message, message.content.trim());
+    } catch {}
     return;
   }
 

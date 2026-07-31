@@ -31,6 +31,30 @@ export async function execute(interaction, client) {
     return;
   }
 
+  if (id.startsWith("c4_") || id.startsWith("c4c_")) {
+    const { handleConnect4Button } = await import("../commands/public/connect4.js");
+    await handleConnect4Button(interaction);
+    return;
+  }
+
+  if (id.startsWith("bj_")) {
+    const { handleBlackjackButton } = await import("../commands/public/blackjack.js");
+    await handleBlackjackButton(interaction);
+    return;
+  }
+
+  if (id.startsWith("rps_")) {
+    const { handleRpsButton } = await import("../commands/public/rps.js");
+    await handleRpsButton(interaction);
+    return;
+  }
+
+  if (id === "g_up" || id === "g_down" || id === "g_left" || id === "g_right") {
+    const { handle2048Button } = await import("../commands/public/2048.js");
+    await handle2048Button(interaction);
+    return;
+  }
+
   const action = getButtonAction(id);
   if (!action) {
     try { await interaction.reply({ content: "This button is no longer active.", ephemeral: true }); } catch {}
