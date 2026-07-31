@@ -1612,7 +1612,7 @@ export async function execute(message) {
   games.set(`${message.channelId}:${message.author.id}`, game);
   const embed = baseEmbed(COLORS.cyan)
     .setTitle("ðŸŸ©ðŸŸ¨â¬› Wordle")
-    .setDescription(`I've picked a **5-letter word**. Guess it in 6 tries!\n\nType a word to guess.\n\n\`\`\`${renderGuesses(game)}\`\`\``)
+    .setDescription(`I've picked a **5-letter word**. Guess it in 6 tries!\n\nType a word to guess.\n\n${renderGuesses(game)}`)
     .setFooter({ text: "Tries left: 6" });
   await message.reply({ embeds: [embed] });
 }
@@ -1655,7 +1655,7 @@ export async function handleWordleGuess(message, word) {
     game.won = true;
     const embed = baseEmbed(COLORS.success)
       .setTitle("ðŸŽ‰ You got it!")
-      .setDescription(`\`\`\`${renderGuesses(game)}\`\`\`\n\nThe word was **${game.word}**. Solved in ${game.guesses.length}/6!`);
+      .setDescription(`${renderGuesses(game)}\n\nThe word was **${game.word}**. Solved in ${game.guesses.length}/6!`);
     games.delete(`${message.channelId}:${message.author.id}`);
     await message.reply({ embeds: [embed] });
     return true;
@@ -1663,14 +1663,14 @@ export async function handleWordleGuess(message, word) {
   if (triesLeft <= 0) {
     const embed = baseEmbed(COLORS.danger)
       .setTitle("ðŸ˜¢ Out of tries!")
-      .setDescription(`\`\`\`${renderGuesses(game)}\`\`\`\n\nThe word was **${game.word}**.`);
+      .setDescription(`${renderGuesses(game)}\n\nThe word was **${game.word}**.`);
     games.delete(`${message.channelId}:${message.author.id}`);
     await message.reply({ embeds: [embed] });
     return true;
   }
   const embed = baseEmbed(COLORS.cyan)
     .setTitle("ðŸŸ©ðŸŸ¨â¬› Wordle")
-    .setDescription(`\`\`\`${renderGuesses(game)}\`\`\`\n\nTries left: **${triesLeft}**`)
+    .setDescription(`${renderGuesses(game)}\n\nTries left: **${triesLeft}**`)
     .setFooter({ text: "ðŸŸ© = correct position, ðŸŸ¨ = in word, â¬› = not in word" });
   await message.reply({ embeds: [embed] });
   return true;
