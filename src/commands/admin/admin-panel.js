@@ -139,22 +139,22 @@ export async function handleAdminPanelButton(interaction, { client }) {
 
   if (action === "home") {
     const panel = buildHomePanel(interaction.guild, client);
-    return interaction.update({ embeds: [panel.embed], components: panel.rows, ephemeral: true });
+    return interaction.update({ embeds: [panel.embed], components: panel.rows});
   }
 
   if (action === "settings") {
     const panel = buildSettingsPanel(interaction.guild);
-    return interaction.update({ embeds: [panel.embed], components: panel.rows, ephemeral: true });
+    return interaction.update({ embeds: [panel.embed], components: panel.rows});
   }
 
   if (action === "stats") {
     const panel = buildStatsPanel(interaction.guild, client);
-    return interaction.update({ embeds: [panel.embed], components: panel.rows, ephemeral: true });
+    return interaction.update({ embeds: [panel.embed], components: panel.rows});
   }
 
   if (action === "set" && key) {
     const panel = buildInfoPanel(interaction.guild, key);
-    return interaction.update({ embeds: [panel.embed], components: panel.rows, ephemeral: true });
+    return interaction.update({ embeds: [panel.embed], components: panel.rows});
   }
 
   if (action === "toggle" && key) {
@@ -162,13 +162,13 @@ export async function handleAdminPanelButton(interaction, { client }) {
     const newVal = settings[key] === "true" ? "false" : "true";
     setSetting(interaction.guildId, key, newVal);
     const panel = buildInfoPanel(interaction.guild, key);
-    return interaction.update({ embeds: [panel.embed], components: panel.rows, ephemeral: true });
+    return interaction.update({ embeds: [panel.embed], components: panel.rows});
   }
 
   if (action === "logout") {
-    return interaction.update({ content: "👋 Panel closed.", embeds: [], components: [], ephemeral: true });
+    return interaction.update({ content: "👋 Panel closed.", embeds: [], components: []});
   }
 
   const panel = buildHomePanel(interaction.guild, client);
-  return interaction.update({ embeds: [panel.embed], components: panel.rows, ephemeral: true });
+  return interaction.update({ embeds: [panel.embed], components: panel.rows});
 }

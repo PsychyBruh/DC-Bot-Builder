@@ -3,6 +3,21 @@ import { getButtonAction } from "../storage/buttonActions.js";
 export const name = "interactionCreate";
 
 export async function execute(interaction, client) {
+  try {
+    await _executeImpl(interaction, client);
+  } catch (err) {
+    console.error("interactionCreate error:", err);
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({ content: "This button had an error: " + (err && err.message || "unknown"), ephemeral: true });
+      } else {
+        await interaction.reply({ content: "This button had an error: " + (err && err.message || "unknown"), ephemeral: true });
+      }
+    } catch {}
+  }
+}
+
+async function _executeImpl(interaction, client) {
   if (!interaction.isButton()) return;
 
   const id = interaction.customId;
