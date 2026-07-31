@@ -38,17 +38,23 @@ function buildHelpEmbed(meta, cmds) {
     .setFooter({ text: `${cmds.length} command${cmds.length === 1 ? "" : "s"}` });
 }
 
-export async function execute(message, args, { client }) {
+export async function execute(message, args, { client, isAdmin }) {
   const sub = args[0]?.toLowerCase();
 
   if (sub && CATEGORIES[sub]) {
+    if (sub === "admin" && !isAdmin) {
+      return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Admin only.")] });
+    }
     const meta = CATEGORIES[sub];
     const cmds = getCommandsByCategory(client, sub);
     return message.reply({ embeds: [buildHelpEmbed(meta, cmds)], ephemeral: true });
   }
 
-  if (sub && (client.publicCommands.has(sub) || client.adminCommands.has(sub))) {
+  if (sub && client.commands.has(sub)) {
     const cmd = client.commands.get(sub);
+    if (cmd.adminOnly && !isAdmin) {
+      return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Admin only.")] });
+    }
     const embed = baseEmbed(COLORS.info)
       .setTitle(`❓ !${cmd.name}`)
       .setDescription(cmd.description || "No description")
@@ -78,8 +84,9 @@ export async function execute(message, args, { client }) {
     .setFooter({ text: "Only you see this" });
 
   const rows = [];
-  const entries = Object.entries(CATEGORIES);
+  const entries = Object.entries(CATEGORIES).filter(([key]) => key !== "admin" || isAdmin);
   let row = new ActionRowBuilder();
+  let count = 0;
   for (let i = 0; i < entries.length; i++) {
     const [key, cat] = entries[i];
     const style = key === "admin" ? ButtonStyle.Danger : key === "ai" ? ButtonStyle.Primary : ButtonStyle.Secondary;
@@ -88,9 +95,11 @@ export async function execute(message, args, { client }) {
       .setLabel(`${cat.emoji} ${cat.name}`)
       .setStyle(style),
     );
-    if (row.components.length === 5 || i === entries.length - 1) {
+    count++;
+    if (count === 5 || i === entries.length - 1) {
       rows.push(row);
       row = new ActionRowBuilder();
+      count = 0;
     }
   }
   await message.reply({ embeds: [intro], components: rows, ephemeral: true });
@@ -100,6 +109,13 @@ export async function handleHelpButton(interaction, { client }) {
   if (!interaction.customId.startsWith("help_")) return false;
   const cat = interaction.customId.split("_")[1];
   if (!CATEGORIES[cat]) return false;
+  if (cat === "admin") {
+    const member = interaction.member;
+    const isAdmin = member?.permissions?.has(8n);
+    if (!isAdmin) {
+      return interaction.reply({ content: "❌ Admin only.", ephemeral: true });
+    }
+  }
   const meta = CATEGORIES[cat];
   const cmds = getCommandsByCategory(client, cat);
   await interaction.update({ embeds: [buildHelpEmbed(meta, cmds)], components: [], ephemeral: true });
