@@ -10,6 +10,7 @@ export const COOLDOWNS = {
   ai_long: 60_000,
   fun: 2_000,
   rep: 86_400_000,
+  crime: 20_000,
 };
 
 export async function applyCooldown(message, command, tier = "fun") {

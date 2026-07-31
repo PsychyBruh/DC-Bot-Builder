@@ -45,6 +45,7 @@ export async function execute(message) {
       "state.jsonl", "settings.json", "buttons.json", "memories.json",
       "users.json", "cooldowns.json", "privateRooms.json",
       "reminders.json", "giveaways.json", "quotes.json",
+      "market.json", "lottery.json", "bounties.json",
     ]) {
       const p = path.join(DATA_DIR, file);
       if (fs.existsSync(p)) fs.unlinkSync(p);

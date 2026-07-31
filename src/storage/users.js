@@ -10,7 +10,11 @@ const users = new Map();
 function ensureDefaults(data) {
   if (!data.balance) data.balance = 1000;
   if (!data.rep) data.rep = { given: {}, total: 0 };
-  if (!data.streak) data.streak = { count: 0, last: null };
+  if (!data.streak) data.streak = { count: 0, last: null, daily: 0, dailyLast: null, weekly: 0, weeklyLast: null };
+  if (data.streak && !data.streak.daily) data.streak.daily = 0;
+  if (data.streak && !data.streak.dailyLast) data.streak.dailyLast = null;
+  if (data.streak && !data.streak.weekly) data.streak.weekly = 0;
+  if (data.streak && !data.streak.weeklyLast) data.streak.weeklyLast = null;
   if (!data.xp) data.xp = 0;
   if (!data.level) data.level = 0;
   if (!data.afk) data.afk = null;
@@ -23,6 +27,21 @@ function ensureDefaults(data) {
   if (!data.slotsWon) data.slotsWon = 0;
   if (!data.privateRoomId) data.privateRoomId = null;
   if (!data.lastSeen) data.lastSeen = Date.now();
+  // economy
+  if (!data.job) data.job = null;
+  if (!data.lastWork) data.lastWork = 0;
+  if (!data.inventory) data.inventory = {};
+  if (!data.boosters) data.boosters = {}; // { coin: until, xp: until, luck: until, shield: until }
+  if (!data.shares) data.shares = 0;
+  if (!data.shareCost) data.shareCost = 0; // avg buy
+  if (!data.jailed) data.jailed = null; // { until, count } when jailed
+  if (!data.stealFails) data.stealFails = 0; // 3 fails => jail
+  if (!data.stealImmune) data.stealImmune = null; // until timestamp
+  if (!data.bountyOnMe) data.bountyOnMe = 0; // total coins bounty on this user
+  if (!data.karma) data.karma = 0;
+  if (!data.property) data.property = null; // property id owned
+  if (!data.jobsWorked) data.jobsWorked = 0;
+  if (!data.giveUsed) data.giveUsed = {}; // { receiverId: amount, receiverId_date: 'YYYY-MM-DD' }
   return data;
 }
 

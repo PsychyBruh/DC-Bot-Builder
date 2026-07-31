@@ -98,6 +98,20 @@ client.once("clientReady", async () => {
   const { startPrivateRoomCleaner } = await import("./commands/utils/privateRoomCleaner.js");
   startPrivateRoomCleaner(client);
 
+  // Economy housekeeping: market price tick + lottery auto-draw
+  const { tickMarket } = await import("./storage/market.js");
+  const { checkAndDraw } = await import("./storage/lottery.js");
+  tickMarket();
+  setInterval(() => {
+    try { tickMarket(); } catch (e) { console.error("market tick failed:", e.message); }
+    try {
+      const res = checkAndDraw(client);
+      if (res && res.winnerId) {
+        // Best-effort announcement to all known channels is impractical; skip DM spam
+      }
+    } catch (e) { console.error("lottery draw failed:", e.message); }
+  }, 5 * 60 * 1000); // every 5 min: re-tick market, check lottery
+
   console.log(`Prefix: ${PREFIX}`);
 });
 

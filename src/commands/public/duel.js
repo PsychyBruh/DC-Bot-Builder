@@ -13,11 +13,26 @@ export const description = "Interactive turn-based battle vs another user. !duel
 export const usage = "!duel @user <amount>";
 export const category = "games";
 
-export function stopSession(channelId, userId) {
+export async function stopSession(channelId, userId, channel) {
   const g = games.get(channelId);
   if (!g) return false;
-  if (g.players.includes(userId)) {
+  // Pending challenge: refund both and delete
+  if (g.pending) {
+    adjustBalance(g.pending.challenger.id, g.pending.wager);
+    adjustBalance(g.pending.opponent.id, g.pending.wager);
     games.delete(channelId);
+    return true;
+  }
+  // Active battle: the player who stops FORFEITS (opponent takes 2x wager)
+  if (g.players.includes(userId)) {
+    if (g.timer) clearTimeout(g.timer);
+    const loserIdx = g.players.findIndex((p) => p.id === userId);
+    const winnerIdx = 1 - loserIdx;
+    g.log.push(`\u23F0 **${g.players[loserIdx].username}** stopped the battle and forfeited!`);
+    if (channel) {
+      try { await channel.send({ embeds: [buildBattleEmbed(g, g.log)], components: [disabledRow()] }); } catch {}
+    }
+    await finishGame(null, g, channel, winnerIdx, loserIdx);
     return true;
   }
   return false;
@@ -73,7 +88,8 @@ function buildBattleEmbed(game, log) {
 }
 
 async function finishGame(message, game, channel, winnerIdx, loserIdx) {
-  games.delete(channel.id);
+  // Delete the game from active map (idempotent: stopSession may have already done so)
+  if (channel && channel.id && games.has(channel.id)) games.delete(channel.id);
   // refund wagers on a draw
   if (winnerIdx === -1) {
     adjustBalance(game.players[0].id, game.wager);
@@ -81,7 +97,7 @@ async function finishGame(message, game, channel, winnerIdx, loserIdx) {
     const emb = baseEmbed(COLORS.warning)
       .setTitle("\u{1F91D} Draw!")
       .setDescription(`Both combatants fell!\n\nWagers refunded.\n\n${hpBar(game.hp[0])} | ${game.players[0].username}\n${hpBar(game.hp[1])} | ${game.players[1].username}`);
-    await channel.send({ embeds: [emb], components: [disabledRow()] });
+    if (channel) await channel.send({ embeds: [emb], components: [disabledRow()] });
     return;
   }
   adjustBalance(game.players[winnerIdx].id, game.wager * 2);
@@ -93,7 +109,7 @@ async function finishGame(message, game, channel, winnerIdx, loserIdx) {
     .setTitle(`\u{1F3C6} ${win.username} wins!`)
     .setDescription(`\u{1F4B0} **${win.username}** takes **${(game.wager * 2).toLocaleString()}** coins!\n\nFinal HP:\n${hpBar(game.hp[winnerIdx])} ${win.username}\n${hpBar(game.hp[loserIdx])} ${lose.username}`)
     .setFooter({ text: `Loser: ${lose.username}` });
-  await channel.send({ embeds: [emb], components: [disabledRow()] });
+  if (channel) await channel.send({ embeds: [emb], components: [disabledRow()] });
 }
 
 async function applyMove(interaction, game, channel, action) {
