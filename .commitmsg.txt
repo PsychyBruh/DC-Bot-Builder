@@ -1,0 +1,6 @@
+feat: goodbye messages, message edit/delete logs, member_role support
+
+- guildMemberRemove.js: sends goodbye embed to goodbye_channel setting
+- messageDelete.js: logs deleted messages to log_channel setting
+- messageUpdate.js: logs edits to log_channel setting
+- guildMemberAdd.js: also assigns member_role setting on join

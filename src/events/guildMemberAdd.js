@@ -32,6 +32,13 @@ export async function execute(member) {
     await member.roles.add(autoRole).catch(() => {});
   }
 
+  const memberRole = guildSettings.member_role
+    ? guild.roles.cache.find((r) => r.name === guildSettings.member_role || r.id === guildSettings.member_role)
+    : null;
+  if (memberRole) {
+    await member.roles.add(memberRole).catch(() => {});
+  }
+
   const welcomeChannel = guildSettings.welcome_channel
     ? guild.channels.cache.find((c) => c.name === guildSettings.welcome_channel || c.id === guildSettings.welcome_channel)
     : null;
