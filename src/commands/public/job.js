@@ -20,7 +20,8 @@ export async function execute(message, args) {
   const lastSwitch = u.jobSwitchAt || 0;
   if (lastSwitch && Date.now() - lastSwitch < JOB_SWITCH_COOLDOWN) {
     const wait = JOB_SWITCH_COOLDOWN - (Date.now() - lastSwitch);
-    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You switched jobs recently. Try again in **${Math.ceil(wait / 3600000)}h**.`)] });
+    const waitStr = wait >= 3600000 ? `${Math.ceil(wait / 3600000)}h` : `${Math.ceil(wait / 60000)}m`;
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You switched jobs recently. Try again in **${waitStr}**.`)] });
   }
 
   updateUser(message.author.id, (d) => {

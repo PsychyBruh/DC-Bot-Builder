@@ -12,7 +12,7 @@ export const JOBS = [
   { id: "wizard",       name: "Wizard",         emoji: "\u{1F9D9}", base: 1200, cooldown: 120 * 60 * 1000, desc: "Top pay, slowest" },
 ];
 
-export const JOB_SWITCH_COOLDOWN = 24 * 60 * 60 * 1000; // 24h to switch jobs
+export const JOB_SWITCH_COOLDOWN = 5 * 60 * 1000; // 5 min to switch jobs
 
 // ============ SHOP ITEMS ============
 export const ITEMS = [
