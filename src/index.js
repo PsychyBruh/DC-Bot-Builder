@@ -3,6 +3,7 @@ import {
   Client,
   GatewayIntentBits,
   Collection,
+  PermissionFlagsBits,
 } from "discord.js";
 import fs from "fs";
 import path from "path";
@@ -18,23 +19,35 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildInvites,
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.DirectMessages,
   ],
 });
 
 client.commands = new Collection();
+client.publicCommands = new Map();
+client.adminCommands = new Map();
 
-const commandsPath = path.join(__dirname, "commands");
-const commandFiles = fs
-  .readdirSync(commandsPath)
-  .filter((file) => file.endsWith(".js"));
-
-for (const file of commandFiles) {
-  const filePath = path.join(commandsPath, file);
-  const command = await import(pathToFileURL(filePath).href);
-  if (command.name && command.execute) {
-    client.commands.set(command.name, command);
+async function loadCommandsFromDir(dir, category) {
+  if (!fs.existsSync(dir)) return;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await loadCommandsFromDir(full, category || entry.name);
+    } else if (entry.name.endsWith(".js")) {
+      const mod = await import(pathToFileURL(full).href);
+      if (!mod.name || !mod.execute) continue;
+      client.commands.set(mod.name, { ...mod, category: category || mod.category || "misc" });
+      if (mod.adminOnly) client.adminCommands.set(mod.name, mod);
+      else client.publicCommands.set(mod.name, mod);
+    }
   }
 }
+
+const commandsPath = path.join(__dirname, "commands");
+await loadCommandsFromDir(commandsPath);
+console.log(`Loaded ${client.commands.size} commands (${client.publicCommands.size} public, ${client.adminCommands.size} admin)`);
 
 client.once("clientReady", async () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -44,12 +57,24 @@ client.once("clientReady", async () => {
   const { loadSettings } = await import("./storage/serverSettings.js");
   const { loadButtonActions } = await import("./storage/buttonActions.js");
   const { loadMemories } = await import("./storage/memories.js");
+  const { loadUsers } = await import("./storage/users.js");
+  const { loadCooldowns } = await import("./storage/cooldowns.js");
+  const { loadPrivateRooms } = await import("./storage/privateRooms.js");
+  const { loadReminders } = await import("./storage/reminders.js");
+  const { loadGiveaways } = await import("./storage/giveaways.js");
+  const { loadQuotes } = await import("./storage/quotes.js");
   const { cacheInvites } = await import("./storage/inviteCache.js");
   restoreCtx();
   restorePending();
   loadSettings();
   loadButtonActions();
   loadMemories();
+  loadUsers();
+  loadCooldowns();
+  loadPrivateRooms();
+  loadReminders();
+  loadGiveaways();
+  loadQuotes();
 
   for (const guild of client.guilds.cache.values()) {
     guild.invites.fetch().then((invites) => cacheInvites(guild.id, invites)).catch(() => {});
@@ -67,7 +92,13 @@ client.once("clientReady", async () => {
     }
   }
 
-  console.log(`Prefix: ${PREFIX}analyze / ${PREFIX}chat`);
+  const { startReminderChecker } = await import("./commands/utils/reminderChecker.js");
+  startReminderChecker(client);
+
+  const { startPrivateRoomCleaner } = await import("./commands/utils/privateRoomCleaner.js");
+  startPrivateRoomCleaner(client);
+
+  console.log(`Prefix: ${PREFIX}`);
 });
 
 client.on("messageCreate", async (message) => {
@@ -77,7 +108,13 @@ client.on("messageCreate", async (message) => {
     try { await message.react("❤️"); } catch {}
   }
 
-  if (!message.content.startsWith(PREFIX)) return;
+  if (!message.content.startsWith(PREFIX)) {
+    try {
+      const { handleGuessMessage } = await import("./commands/public/guess.js");
+      await handleGuessMessage(message);
+    } catch {}
+    return;
+  }
 
   const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
   const commandName = args.shift().toLowerCase();
@@ -85,16 +122,23 @@ client.on("messageCreate", async (message) => {
   const command = client.commands.get(commandName);
   if (!command) return;
 
+  const isAdmin = message.member?.permissions?.has(PermissionFlagsBits.Administrator);
+  if (command.adminOnly && !isAdmin) {
+    return;
+  }
+
   try {
-    await command.execute(message, args);
+    await command.execute(message, args, { client, isAdmin });
   } catch (error) {
     console.error(`Error executing ${commandName}:`, error);
     const reply = "An unexpected error occurred while executing that command.";
-    if (message.replied || message.editable) {
-      await message.channel.send(reply);
-    } else {
-      await message.reply(reply);
-    }
+    try {
+      if (message.replied || message.editable) {
+        await message.channel.send(reply);
+      } else {
+        await message.reply(reply);
+      }
+    } catch {}
   }
 });
 

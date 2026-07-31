@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # ---------- config (override with env vars) ----------
-CTID="${CTID:-200}"
+CTID="${CTID:-202}"
 HOSTNAME="${HOSTNAME:-dc-bot-builder}"
 TEMPLATE="${TEMPLATE:-local:vztmpl/debian-12-standard_12.2-1_amd64.tar.zst}"
 STORAGE="${STORAGE:-local-lvm}"
@@ -108,8 +108,9 @@ resolve_template
 
 # ---------- prompts ----------
 say "GitHub repo"
-read -r -p "Git clone URL (HTTPS or SSH, e.g. git@github.com:user/dc-bot-builder.git): " GIT_URL
-[[ -n "$GIT_URL" ]] || die "URL required."
+GIT_URL="${GIT_URL:-https://github.com/PsychyBruh/DC-Bot-Builder.git}"
+read -r -p "Git clone URL [$GIT_URL]: " GIT_INPUT
+GIT_URL="${GIT_INPUT:-$GIT_URL}"
 
 # If HTTPS, offer to embed a PAT so pulls work without auth
 if [[ "$GIT_URL" == https://* ]]; then
@@ -143,7 +144,16 @@ else
 fi
 
 pct start "$CTID" 2>/dev/null || true
-pct wait "$CTID" --state RUNNING
+echo -n "Waiting for container to start"
+for i in $(seq 1 30); do
+  sleep 1
+  if pct status "$CTID" 2>/dev/null | grep -q "running"; then
+    echo " ready"
+    break
+  fi
+  echo -n "."
+done
+echo ""
 pctexec() { pct exec "$CTID" -- bash -lc "$*"; }
 
 # ---------- 2. packages ----------
