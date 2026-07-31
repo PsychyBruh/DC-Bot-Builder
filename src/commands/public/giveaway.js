@@ -8,6 +8,7 @@ export const usage = "!giveaway <amount> <winners> <duration>";
 export const category = "economy";
 
 function parseDuration(s) {
+  if (typeof s !== "string") return null;
   const m = /^(\d+)(s|m|h|d)$/i.exec(s.trim());
   if (!m) return null;
   const n = parseInt(m[1], 10);
@@ -20,7 +21,7 @@ export async function execute(message, args) {
   const winners = parseInt(args[1], 10);
   const dur = parseDuration(args[2]);
   if (!amount || amount < 1 || !winners || winners < 1 || !dur || dur < 10000) {
-    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Usage: `!giveaway <amount> <winners> <duration>`\nExample: `!giveaway 100 1 1h`")] });
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Usage: `!giveaway <amount> <winners> <duration>`\nExample: `!giveaway 100 1 1h` (duration: `30s`, `5m`, `2h`, or `1d`; minimum 10s)")] });
   }
   const totalCost = amount * winners;
   const user = getUser(message.author.id);
