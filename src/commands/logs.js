@@ -1,7 +1,8 @@
-import { PermissionFlagsBits } from "discord.js";
+﻿import { PermissionFlagsBits } from "discord.js";
 import { getLogs, getAllLogsFromFile } from "../services/logger.js";
 
 export const name = "logs";
+export const category = "admin";
 
 export async function execute(message, args) {
   if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -22,7 +23,7 @@ export async function execute(message, args) {
   const lines = logs.map((entry, i) => {
     const time = new Date(entry.timestamp).toLocaleString();
     const status = entry.success ? "OK" : "FAIL";
-    return `**#${entry.id}** [${status}] ${time} — **${entry.userName}** — \`${entry.action}\`\n> ${entry.result?.message || "—"}`;
+    return `**#${entry.id}** [${status}] ${time} â€” **${entry.userName}** â€” \`${entry.action}\`\n> ${entry.result?.message || "â€”"}`;
   });
 
   const header = `**Action Logs (last ${logs.length} of this session):**\n`;

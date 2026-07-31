@@ -1,10 +1,11 @@
-import { PermissionFlagsBits } from "discord.js";
+﻿import { PermissionFlagsBits } from "discord.js";
 import { getLastAction, removeLastAction, logAction } from "../services/logger.js";
 import { undoAction } from "../services/executor.js";
 import { analyzeGuild } from "../services/analyzer.js";
 import { setContext, getConversation, setConversation } from "../storage/serverContext.js";
 
 export const name = "undo";
+export const category = "admin";
 
 export async function execute(message) {
   if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {

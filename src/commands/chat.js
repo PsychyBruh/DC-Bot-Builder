@@ -1,4 +1,4 @@
-import { PermissionFlagsBits } from "discord.js";
+﻿import { PermissionFlagsBits } from "discord.js";
 import { getContext, setContext, getConversation, appendConversation } from "../storage/serverContext.js";
 import { askClaude } from "../services/claude.js";
 import { executeAction, getDiscordTools, requiresVote } from "../services/executor.js";
@@ -16,10 +16,11 @@ function isCasual(msg) {
 }
 
 const LIGHT_REPLIES = [
-  "👍", "np", "got it", "cool", "👌", "done",
+  "ðŸ‘", "np", "got it", "cool", "ðŸ‘Œ", "done",
 ];
 
 export const name = "chat";
+export const category = "admin";
 
 export async function execute(message, args) {
   if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -156,10 +157,10 @@ async function runChat(message, guildId, userId, messages, context, status) {
         const actionLabel = toolBlock.name.replace(/_/g, " ");
         const paramsSummary = Object.entries(toolBlock.input).map(([k, v]) => `${k}: ${v}`).join(", ");
         const truncated = paramsSummary.length > 200 ? paramsSummary.slice(0, 200) + "..." : paramsSummary;
-        await status.edit({ content: `*executing ${actionLabel} — ${truncated}*` });
+        await status.edit({ content: `*executing ${actionLabel} â€” ${truncated}*` });
         if (requiresVote(toolBlock.name, toolBlock.input)) {
           setPendingVote(guildId, toolBlock.name, toolBlock.input, toolBlock.id, 2);
-          await status.edit({ content: `*${actionLabel} — requires 2 admin approvals. Other admins can type !chat yes to approve.*` });
+          await status.edit({ content: `*${actionLabel} â€” requires 2 admin approvals. Other admins can type !chat yes to approve.*` });
           toolResults.push({
             type: "tool_result",
             tool_use_id: toolBlock.id,
@@ -178,13 +179,13 @@ async function runChat(message, guildId, userId, messages, context, status) {
             tool_use_id: toolBlock.id,
             content: `Error: ${err.message}`,
           });
-          await status.edit({ content: `*FAIL ${actionLabel} — ${err.message}*` });
+          await status.edit({ content: `*FAIL ${actionLabel} â€” ${err.message}*` });
           continue;
         }
 
         if (result.needsConfirmation) {
           setPendingAction(guildId, userId, toolBlock.name, toolBlock.input, toolBlock.id);
-          await status.edit({ content: `*${actionLabel} — needs your confirmation before proceeding. Reply with !chat yes to confirm.*` });
+          await status.edit({ content: `*${actionLabel} â€” needs your confirmation before proceeding. Reply with !chat yes to confirm.*` });
 
           toolResults.push({
             type: "tool_result",

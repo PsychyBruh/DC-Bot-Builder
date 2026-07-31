@@ -1,8 +1,9 @@
-import { EmbedBuilder, PermissionFlagsBits } from "discord.js";
+﻿import { EmbedBuilder, PermissionFlagsBits } from "discord.js";
 import { analyzeGuild } from "../services/analyzer.js";
 import { setContext } from "../storage/serverContext.js";
 
 export const name = "analyze";
+export const category = "admin";
 
 export async function execute(message) {
   if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {

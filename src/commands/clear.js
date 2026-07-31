@@ -1,4 +1,4 @@
-import { PermissionFlagsBits } from "discord.js";
+﻿import { PermissionFlagsBits } from "discord.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -19,6 +19,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
 
 export const name = "clear";
+export const category = "admin";
 
 export async function execute(message) {
   if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {

@@ -1,7 +1,8 @@
-import { EmbedBuilder, PermissionFlagsBits } from "discord.js";
+﻿import { EmbedBuilder, PermissionFlagsBits } from "discord.js";
 import { getUserMemories, getGlobalMemories } from "../storage/memories.js";
 
 export const name = "memory";
+export const category = "admin";
 
 export async function execute(message) {
   if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
@@ -20,7 +21,7 @@ export async function execute(message) {
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setTitle("🧠 Memories");
+    .setTitle("ðŸ§  Memories");
 
   if (globalMems.length) {
     embed.addFields({

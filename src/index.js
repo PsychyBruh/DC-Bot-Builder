@@ -38,7 +38,7 @@ async function loadCommandsFromDir(dir, category) {
     } else if (entry.name.endsWith(".js")) {
       const mod = await import(pathToFileURL(full).href);
       if (!mod.name || !mod.execute) continue;
-      client.commands.set(mod.name, { ...mod, category: category || mod.category || "misc" });
+      client.commands.set(mod.name, { ...mod, category: mod.category || category || "misc" });
       if (mod.adminOnly) client.adminCommands.set(mod.name, mod);
       else client.publicCommands.set(mod.name, mod);
     }
