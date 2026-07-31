@@ -68,9 +68,9 @@ export async function execute(message, args, { client }) {
   const pub = client.publicCommands.size;
   const adm = client.adminCommands.size;
   const intro = baseEmbed(COLORS.primary)
-    .setTitle(`${EMOJIS.sparkle} DC Bot Builder — Help`)
+    .setTitle(`${EMOJIS.sparkle} Project Nova — Help`)
     .setDescription(
-      `Multi-purpose Discord bot: games, fun, social, AI, and admin tools.\n\n` +
+      `Multi-purpose Discord bot by Project Nova: games, fun, social, AI, and admin tools.\n\n` +
       `**${total}** commands: **${pub}** public • **${adm}** admin\n\n` +
       `Click a category button below.\nType \`!help <command>\` for command details.\nType \`!help <category>\` to view a category.`,
     )

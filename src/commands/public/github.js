@@ -12,7 +12,7 @@ export async function execute(message, args) {
   }
   try {
     const r = await fetch(`https://api.github.com/repos/${repo}`, {
-      headers: { "User-Agent": "DC-Bot-Builder" },
+      headers: { "User-Agent": "ProjectNova" },
     });
     if (!r.ok) {
       return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("❌ Repo not found")] });

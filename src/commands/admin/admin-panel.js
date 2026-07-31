@@ -39,7 +39,7 @@ export async function execute(message, { client }) {
 function buildHomePanel(guild, client) {
   const settings = getSettings(guild.id);
   const embed = baseEmbed(COLORS.primary)
-    .setTitle(`${EMOJIS.sparkle} DC Bot Builder — Admin Panel`)
+    .setTitle(`${EMOJIS.sparkle} Project Nova — Admin Panel`)
     .setDescription(`Configure your bot visually. Click a category below.\n\n**Server:** ${guild.name}\n**Settings:** ${Object.keys(settings).length} configured`)
     .setThumbnail(guild.iconURL({ dynamic: true, size: 256 }));
 

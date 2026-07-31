@@ -423,7 +423,7 @@ export async function executeAction(guild, action, params, force = false, userId
         hoist: params.hoist || false,
         mentionable: params.mentionable || false,
         permissions,
-        reason: "DC Bot Builder",
+        reason: "Project Nova",
       });
       return {
         success: true,
@@ -465,7 +465,7 @@ export async function executeAction(guild, action, params, force = false, userId
       if (!targetRole) return { success: false, message: `Role "${params.name}" not found`, beforeState: null };
       const beforeState = { permissions: targetRole.permissions.bitfield.toString() };
       const permissions = params.permissions ? resolvePermissions(params.permissions) : 0n;
-      await targetRole.edit({ permissions, reason: "DC Bot Builder" });
+      await targetRole.edit({ permissions, reason: "Project Nova" });
       return { success: true, message: `Base permissions updated for "${targetRole.name}"`, beforeState };
     }
 
@@ -512,7 +512,7 @@ export async function executeAction(guild, action, params, force = false, userId
         mentionable: role.mentionable,
         permissions: role.permissions.bitfield.toString(),
       };
-      await role.delete("DC Bot Builder");
+      await role.delete("Project Nova");
       return { success: true, message: `Role "${beforeState.name}" deleted`, beforeState };
     }
 
@@ -520,7 +520,7 @@ export async function executeAction(guild, action, params, force = false, userId
       const category = await guild.channels.create({
         name: params.name,
         type: ChannelType.GuildCategory,
-        reason: "DC Bot Builder",
+        reason: "Project Nova",
       });
       return { success: true, message: `Category "${category.name}" created (${category.id})`, createdId: category.id, beforeState: null };
     }
@@ -536,7 +536,7 @@ export async function executeAction(guild, action, params, force = false, userId
         type,
         topic: params.topic || undefined,
         parent: params.parentCategoryName ? await resolveCategoryId(guild, params.parentCategoryName) : undefined,
-        reason: "DC Bot Builder",
+        reason: "Project Nova",
       });
       return { success: true, message: `Channel "${channel.name}" created (${channel.id})`, createdId: channel.id, beforeState: null };
     }
@@ -706,7 +706,7 @@ export async function executeAction(guild, action, params, force = false, userId
         bitrate: channel.bitrate, userLimit: channel.userLimit,
         permissionOverwrites: overwrites,
       };
-      await channel.delete("DC Bot Builder");
+      await channel.delete("Project Nova");
       return { success: true, message: `Channel "${beforeState.name}" deleted`, beforeState };
     }
 
@@ -734,14 +734,14 @@ export async function executeAction(guild, action, params, force = false, userId
       if (Object.keys(overwriteOpts).length === 0) {
         return { success: false, message: `No known permission strings found. Use valid permission names like VIEW_CHANNEL, SEND_MESSAGES.`, beforeState: null };
       }
-      await channel.permissionOverwrites.edit(role, overwriteOpts, { reason: "DC Bot Builder" });
+      await channel.permissionOverwrites.edit(role, overwriteOpts, { reason: "Project Nova" });
       if (channel.type === ChannelType.GuildCategory) {
         const children = guild.channels.cache.filter((c) => c.parentId === channel.id);
         let cleared = 0;
         for (const [, child] of children) {
           const childOverwrite = child.permissionOverwrites.cache.get(role.id);
           if (childOverwrite) {
-            await child.permissionOverwrites.delete(role.id, "DC Bot Builder — cascading from category");
+            await child.permissionOverwrites.delete(role.id, "Project Nova — cascading from category");
             cleared++;
           }
         }
@@ -754,7 +754,7 @@ export async function executeAction(guild, action, params, force = false, userId
       const emoji = await guild.emojis.create({
         attachment: params.imageUrl,
         name: params.name,
-        reason: "DC Bot Builder",
+        reason: "Project Nova",
       });
       return { success: true, message: `Emoji ":${emoji.name}:" created (${emoji.id})`, createdId: emoji.id, beforeState: null };
     }
@@ -763,20 +763,20 @@ export async function executeAction(guild, action, params, force = false, userId
       const emoji = guild.emojis.cache.find((e) => e.name === params.name);
       if (!emoji) return { success: false, message: `Emoji "${params.name}" not found`, beforeState: null };
       const beforeState = { name: emoji.name, id: emoji.id, url: emoji.imageURL() };
-      await emoji.delete("DC Bot Builder");
+      await emoji.delete("Project Nova");
       return { success: true, message: `Emoji ":${beforeState.name}:" deleted`, beforeState };
     }
 
     case "kick_member": {
       const member = await guild.members.fetch(params.userId).catch(() => null);
       if (!member) return { success: false, message: `Member with id ${params.userId} not found`, beforeState: null };
-      await member.kick(params.reason || "DC Bot Builder");
+      await member.kick(params.reason || "Project Nova");
       return { success: true, message: `Member ${member.user.tag} kicked`, beforeState: { userId: params.userId, tag: member.user.tag } };
     }
 
     case "ban_member": {
       const user = await guild.bans.create(params.userId, {
-        reason: params.reason || "DC Bot Builder",
+        reason: params.reason || "Project Nova",
         deleteMessageSeconds: params.deleteMessageDays ? params.deleteMessageDays * 86400 : 0,
       }).catch(() => null);
       if (!user) return { success: false, message: `Failed to ban user ${params.userId}`, beforeState: null };
@@ -787,7 +787,7 @@ export async function executeAction(guild, action, params, force = false, userId
       const member = await guild.members.fetch(params.userId).catch(() => null);
       if (!member) return { success: false, message: `Member with id ${params.userId} not found`, beforeState: null };
       const beforeState = { userId: params.userId, communicationDisabledUntil: member.communicationDisabledUntil };
-      await member.timeout(params.duration * 60 * 1000, params.reason || "DC Bot Builder");
+      await member.timeout(params.duration * 60 * 1000, params.reason || "Project Nova");
       return { success: true, message: `Member ${member.user.tag} timed out for ${params.duration} minutes`, beforeState };
     }
 
@@ -835,7 +835,7 @@ export async function undoAction(guild, logEntry) {
       if (!createdId) return { success: false, message: "Cannot undo: missing role id" };
       const role = guild.roles.cache.get(createdId);
       if (!role) return { success: false, message: "Role was already deleted" };
-      await role.delete("DC Bot Builder — undo");
+      await role.delete("Project Nova — undo");
       return { success: true, message: `Undid create_role: deleted "${role.name}"` };
     }
 
@@ -863,7 +863,7 @@ export async function undoAction(guild, logEntry) {
         hoist: beforeState.hoist || false,
         mentionable: beforeState.mentionable || false,
         permissions: BigInt(beforeState.permissions),
-        reason: "DC Bot Builder — undo",
+        reason: "Project Nova — undo",
       });
       return { success: true, message: `Undid delete_role: recreated "${beforeState.name}"` };
     }
@@ -872,7 +872,7 @@ export async function undoAction(guild, logEntry) {
       if (!createdId) return { success: false, message: "Cannot undo: missing category id" };
       const cat = guild.channels.cache.get(createdId);
       if (!cat) return { success: false, message: "Category was already deleted" };
-      await cat.delete("DC Bot Builder — undo");
+      await cat.delete("Project Nova — undo");
       return { success: true, message: `Undid create_category: deleted "${cat.name}"` };
     }
 
@@ -880,7 +880,7 @@ export async function undoAction(guild, logEntry) {
       if (!createdId) return { success: false, message: "Cannot undo: missing channel id" };
       const ch = guild.channels.cache.get(createdId);
       if (!ch) return { success: false, message: "Channel was already deleted" };
-      await ch.delete("DC Bot Builder — undo");
+      await ch.delete("Project Nova — undo");
       return { success: true, message: `Undid create_channel: deleted "${ch.name}"` };
     }
 
@@ -909,7 +909,7 @@ export async function undoAction(guild, logEntry) {
         rateLimitPerUser: beforeState.rateLimitPerUser || 0,
         bitrate: beforeState.bitrate,
         userLimit: beforeState.userLimit,
-        reason: "DC Bot Builder — undo",
+        reason: "Project Nova — undo",
       });
       if (beforeState.permissionOverwrites) {
         for (const ow of beforeState.permissionOverwrites) {
@@ -928,7 +928,7 @@ export async function undoAction(guild, logEntry) {
       if (!beforeState) return { success: false, message: "Cannot undo: missing before state" };
       const permRole = guild.roles.cache.find((r) => r.name === params.name || r.id === params.id);
       if (!permRole) return { success: false, message: "Role no longer exists" };
-      await permRole.edit({ permissions: BigInt(beforeState.permissions), reason: "DC Bot Builder — undo" });
+      await permRole.edit({ permissions: BigInt(beforeState.permissions), reason: "Project Nova — undo" });
       return { success: true, message: `Undid base permissions for "${permRole.name}"` };
     }
 
@@ -943,7 +943,7 @@ export async function undoAction(guild, logEntry) {
       if (allow === 0n && deny === 0n) {
         await ch2.permissionOverwrites.delete(role2.id).catch(() => {});
       } else {
-        await ch2.permissionOverwrites.edit(role2, { allow, deny }, { reason: "DC Bot Builder — undo" });
+        await ch2.permissionOverwrites.edit(role2, { allow, deny }, { reason: "Project Nova — undo" });
       }
       return { success: true, message: `Undid permission overwrite on "${ch2.name}" for "${role2.name}"` };
     }
@@ -952,13 +952,13 @@ export async function undoAction(guild, logEntry) {
       if (!createdId) return { success: false, message: "Cannot undo: missing emoji id" };
       const emoji = guild.emojis.cache.get(createdId);
       if (!emoji) return { success: false, message: "Emoji was already deleted" };
-      await emoji.delete("DC Bot Builder — undo");
+      await emoji.delete("Project Nova — undo");
       return { success: true, message: `Undid create_emoji: deleted ":${emoji.name}:"` };
     }
 
     case "delete_emoji": {
       if (!beforeState) return { success: false, message: "Cannot undo: missing emoji data" };
-      await guild.emojis.create({ attachment: beforeState.url, name: beforeState.name, reason: "DC Bot Builder — undo" });
+      await guild.emojis.create({ attachment: beforeState.url, name: beforeState.name, reason: "Project Nova — undo" });
       return { success: true, message: `Undid delete_emoji: recreated ":${beforeState.name}:"` };
     }
 
@@ -968,7 +968,7 @@ export async function undoAction(guild, logEntry) {
 
     case "ban_member": {
       if (!beforeState) return { success: false, message: "Cannot undo: missing user data" };
-      await guild.bans.remove(beforeState.userId, "DC Bot Builder — undo");
+      await guild.bans.remove(beforeState.userId, "Project Nova — undo");
       return { success: true, message: `Undid ban: unbanned user ${beforeState.userId}` };
     }
 
@@ -976,7 +976,7 @@ export async function undoAction(guild, logEntry) {
       if (!beforeState) return { success: false, message: "Cannot undo: missing before state" };
       const m = await guild.members.fetch(beforeState.userId).catch(() => null);
       if (!m) return { success: false, message: "Member no longer in server" };
-      await m.timeout(null, "DC Bot Builder — undo");
+      await m.timeout(null, "Project Nova — undo");
       return { success: true, message: `Undid timeout: removed timeout for ${beforeState.userId}` };
     }
 

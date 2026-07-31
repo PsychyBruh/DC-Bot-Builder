@@ -87,7 +87,7 @@ client.once("clientReady", async () => {
       const filePath = path.join(eventsPath, file);
       const event = await import(pathToFileURL(filePath).href);
       if (event.name && event.execute) {
-        client.on(event.name, (...args) => event.execute(...args));
+        client.on(event.name, (...args) => event.execute(...args, client));
       }
     }
   }
