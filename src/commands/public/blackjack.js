@@ -29,10 +29,15 @@ export async function execute(message, args) {
   const bal = user.balance || 0;
   if (bal < bet) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`❌ Not enough coins. You have ${bal}.`)] });
   adjustBalance(message.author.id, -bet);
-  const game = { deck: shuffle(DECK), player: [], dealer: [], bet, done: false };
+  const game = { deck: shuffle(DECK), player: [], dealer: [], bet, doubled: false, done: false };
   game.player.push(game.deck.pop(), game.deck.pop());
   game.dealer.push(game.deck.pop(), game.deck.pop());
   games.set(`${message.channelId}:${message.author.id}`, game);
+  // Natural blackjack pays 3:2 (bet × 2.5 = bet back + 1.5× profit). Auto-stand.
+  const playerNatural = handVal(game.player) === 21;
+  if (playerNatural) {
+    return endGameAtStart(message, game);
+  }
   const embed = baseEmbed(COLORS.gold)
     .setTitle("🃏 Blackjack")
     .setDescription(`**Your hand:** ${game.player.map(cardStr).join(" ")} = **${handVal(game.player)}**\n**Dealer shows:** ${cardStr(game.dealer[0])} ?\n\nBet: ${bet} coins`);
@@ -44,6 +49,29 @@ export async function execute(message, args) {
   await message.reply({ embeds: [embed], components: [row] });
 }
 
+// Natural blackjack (21 from initial 2 cards): pays 3:2. Dealer also revealed and plays out.
+async function endGameAtStart(message, game) {
+  while (handVal(game.dealer) < 17) game.dealer.push(game.deck.pop());
+  const p = handVal(game.player), d = handVal(game.dealer);
+  // payout decision
+  let outcome, payout;
+  if (p > 21) { outcome = "bust"; payout = 0; }
+  else if (d > 21 || p > d) { outcome = "blackjack"; payout = Math.floor(game.bet * 2.5); } // 3:2 profit
+  else if (d === p) { outcome = "push"; payout = game.bet; } // tie
+  else { outcome = "lose"; payout = 0; }
+  if (payout) adjustBalance(message.author.id, payout);
+  if (outcome === "blackjack") updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + (payout - game.bet); });
+  else if (outcome === "bust" || outcome === "lose") updateUser(message.author.id, (u) => { u.coinsLost = (u.coinsLost || 0) + game.bet; });
+  const color = outcome === "blackjack" ? COLORS.success : outcome === "lose" || outcome === "bust" ? COLORS.danger : COLORS.warning;
+  const titles = { blackjack: "🃑 Natural Blackjack!", lose: "😢 You lose!", bust: "💥 Bust!", push: "🤝 Push!" };
+  const changeText = outcome === "blackjack" ? `+${payout - game.bet}` : outcome === "push" ? "±0" : `-${game.bet}`;
+  const embed = baseEmbed(color)
+    .setTitle(titles[outcome])
+    .setDescription(`**Your hand:** ${game.player.map(cardStr).join(" ")} = **${p}**\n**Dealer:** ${game.dealer.map(cardStr).join(" ")} = **${d}**\n\n${changeText} coins\n_Payout: ${payout} (3:2 on natural blackjack)_`);
+  await message.reply({ embeds: [embed] });
+  games.delete(`${message.channelId}:${message.author.id}`);
+}
+
 async function endGame(interaction, game) {
   if (game.done) return;
   game.done = true;
@@ -53,15 +81,18 @@ async function endGame(interaction, game) {
   if (p > 21) outcome = "bust";
   else if (d > 21 || p > d) outcome = "win";
   else if (d > p) outcome = "lose";
-  let coins = 0;
-  if (outcome === "win") coins = game.bet;
-  else if (outcome === "bust" || outcome === "lose") coins = 0;
-  if (coins !== 0) adjustBalance(interaction.user.id, coins);
-  if (outcome === "win") updateUser(interaction.user.id, (u) => { u.coinsWon = (u.coinsWon || 0) + game.bet; });
-  else if (outcome === "bust" || outcome === "lose") updateUser(interaction.user.id, (u) => { u.coinsLost = (u.coinsLost || 0) + game.bet; });
+  // Payout: bet is already deducted upfront.
+  // Win pays 1:1 (return bet + equal profit). Push refunds the bet. Loss/push keeps nothing extra.
+  let payout = 0;
+  if (outcome === "win") payout = game.bet * 2;
+  else if (outcome === "push") payout = game.bet;
+  if (payout) adjustBalance(interaction.user.id, payout);
+  const profit = payout - game.bet;
+  if (profit > 0) updateUser(interaction.user.id, (u) => { u.coinsWon = (u.coinsWon || 0) + profit; });
+  else updateUser(interaction.user.id, (u) => { u.coinsLost = (u.coinsLost || 0) + Math.abs(profit); });
   const color = outcome === "win" ? COLORS.success : outcome === "lose" || outcome === "bust" ? COLORS.danger : COLORS.warning;
   const titles = { win: "🎉 You win!", lose: "😢 You lose!", bust: "💥 Bust!", push: "🤝 Push!" };
-  const changeText = outcome === "win" ? `+${game.bet}` : outcome === "push" ? "±0" : `-${game.bet}`;
+  const changeText = outcome === "win" ? `+${profit}` : outcome === "push" ? "±0" : `-${game.bet}`;
   const embed = baseEmbed(color)
     .setTitle(titles[outcome])
     .setDescription(`**Your hand:** ${game.player.map(cardStr).join(" ")} = **${p}**\n**Dealer:** ${game.dealer.map(cardStr).join(" ")} = **${d}**\n\n${changeText} coins`);
@@ -85,7 +116,13 @@ export async function handleBlackjackButton(interaction) {
     return interaction.update({ embeds: [embed], components: interaction.message.components });
   }
   if (action === "double") {
+    const user = getUser(interaction.user.id);
+    if ((user.balance || 0) < game.bet) {
+      return interaction.reply({ content: "Not enough coins to double.", ephemeral: true });
+    }
+    adjustBalance(interaction.user.id, -game.bet); // deduct the matching extra bet
     game.bet *= 2;
+    game.doubled = true;
     game.player.push(game.deck.pop());
     return endGame(interaction, game);
   }
