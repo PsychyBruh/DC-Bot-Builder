@@ -5,6 +5,10 @@ import { WORDS } from "./wordle.js";
 const games = new Map();
 const WORD_SET = new Set(WORDS.map((w) => w.toUpperCase()));
 
+export function stopSession(channelId, userId) {
+  return games.delete(`${channelId}:${userId}`);
+}
+
 export const name = "word-chain";
 export const description = "Word chain game — type a word starting with the last letter";
 export const usage = "!word-chain";

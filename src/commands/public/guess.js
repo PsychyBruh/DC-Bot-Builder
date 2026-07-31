@@ -30,6 +30,10 @@ export function deleteGuessGame(userId) {
   return games.delete(userId);
 }
 
+export function stopSession(channelId, userId) {
+  return games.delete(userId);
+}
+
 export async function handleGuessMessage(message) {
   if (!/^\d+$/.test(message.content)) return false;
   const game = games.get(message.author.id);

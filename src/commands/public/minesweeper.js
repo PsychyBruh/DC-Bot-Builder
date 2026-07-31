@@ -58,6 +58,10 @@ export const description = "5x5 minesweeper with 5 mines";
 export const usage = "!minesweeper";
 export const category = "games";
 
+export function stopSession(channelId, userId) {
+  return games.delete(`${channelId}:${userId}`);
+}
+
 export async function execute(message) {
   if (!(await applyCooldown(message, "minesweeper", "heavy"))) return;
   const size = 5;

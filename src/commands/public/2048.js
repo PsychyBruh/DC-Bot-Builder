@@ -69,6 +69,10 @@ export const description = "Play 2048 (4x4) — merge tiles to reach 2048";
 export const usage = "!2048";
 export const category = "games";
 
+export function stopSession(channelId, userId) {
+  return games.delete(`${channelId}:${userId}`);
+}
+
 function boardEmbed(board, score, maxTile, over) {
   const lines = board.map((row) => row.map((v) => String(v || "·").padStart(4)).join("  ")).map((l) => `\`${l}\``);
   const embed = baseEmbed(over ? COLORS.danger : COLORS.primary)

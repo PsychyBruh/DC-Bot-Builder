@@ -1600,6 +1600,10 @@ const WORDS = [
 
 export { WORDS };
 
+export function stopSession(channelId, userId) {
+  return games.delete(`${channelId}:${userId}`);
+}
+
 export const name = "wordle";
 export const description = "Wordle! Guess the 5-letter word in 6 tries";
 export const usage = "!wordle";
