@@ -1,9 +1,0 @@
-fix: connect4 redesign (5-row limit), XP gains + level-ups, leaderboard bug
-
-- connect4: board now rendered as text in embed, only 2 action rows of
-  drop buttons (fits Discord 5-row limit); prefix c4d_
-- xp.js: awards 5-15 XP per message (60s cooldown), announces level-ups
-- users.js: addXp uses linear formula (level = xp/100) matching level.js
-- level.js: progress bar now shows XP into current level (xp % 100)
-- level-leaderboard.js: fixed u.userId -> u.id bug
-- interactionCreate.js: c4 dispatcher updated to c4d_
