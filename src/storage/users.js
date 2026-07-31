@@ -113,7 +113,7 @@ export function addXp(userId, amount) {
   const data = getUser(userId);
   data.xp = (data.xp || 0) + amount;
   const oldLevel = data.level || 0;
-  data.level = Math.floor(0.1 * Math.sqrt(data.xp));
+  data.level = Math.floor((data.xp || 0) / 100);
   save();
   return { leveledUp: data.level > oldLevel, level: data.level, xp: data.xp };
 }

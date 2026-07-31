@@ -13,7 +13,7 @@ export async function execute(message) {
   const lines = list.map((u, i) => {
     const lvl = u.level || 0;
     const xp = u.xp || 0;
-    return `${medals[i] || `**${i + 1}.**`} <@${u.userId}> — Level **${lvl}** (${xp} XP)`;
+    return `${medals[i] || `**${i + 1}.**`} <@${u.id}> — Level **${lvl}** (${xp} XP)`;
   });
   const embed = baseEmbed(COLORS.purple)
     .setTitle("⭐ Level Leaderboard")

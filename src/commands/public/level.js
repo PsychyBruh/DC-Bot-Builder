@@ -11,8 +11,9 @@ export async function execute(message, args) {
   const user = getUser(target.id);
   const xp = user.xp || 0;
   const level = user.level || 0;
-  const needed = (level + 1) * 100;
-  const pct = Math.min(100, Math.round((xp / needed) * 100));
+  const xpIntoLevel = xp % 100;
+  const needed = 100;
+  const pct = Math.min(100, Math.round((xpIntoLevel / needed) * 100));
   const barLen = 20;
   const filled = Math.round((pct / 100) * barLen);
   const bar = "█".repeat(filled) + "░".repeat(barLen - filled);

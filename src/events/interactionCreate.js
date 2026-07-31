@@ -31,7 +31,7 @@ export async function execute(interaction, client) {
     return;
   }
 
-  if (id.startsWith("c4_") || id.startsWith("c4c_")) {
+  if (id.startsWith("c4d_")) {
     const { handleConnect4Button } = await import("../commands/public/connect4.js");
     await handleConnect4Button(interaction);
     return;

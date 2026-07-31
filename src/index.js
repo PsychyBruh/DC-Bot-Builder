@@ -108,6 +108,9 @@ client.on("messageCreate", async (message) => {
     try { await message.react("❤️"); } catch {}
   }
 
+  const { handleXp } = await import("./commands/utils/xp.js");
+  try { await handleXp(message); } catch {}
+
   if (!message.content.startsWith(PREFIX)) {
     try {
       const { handleGuessMessage } = await import("./commands/public/guess.js");

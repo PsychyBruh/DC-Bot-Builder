@@ -5,40 +5,26 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 const games = new Map();
 const ROWS = 6;
 const COLS = 7;
+const EMPTY = "⚪";
 
-function boardKey(board) {
-  return board.map((row) => row.join("")).join("|");
+function renderBoard(board) {
+  const header = "`1  2  3  4  5  6  7`";
+  const lines = board.map((row) => `\`${row.map((c) => c || EMPTY).join(" ")}\``);
+  return [header, ...lines].join("\n");
 }
 
-function buildBoard(board, disabled = false) {
-  const rows = [];
+function buildControls(disabled = false) {
+  const btns = [];
   for (let c = 0; c < COLS; c++) {
-    const col = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`c4_${c}_${Date.now()}`)
-        .setLabel("⬇️")
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(disabled),
-    );
-    rows.push(col);
+    btns.push(new ButtonBuilder()
+      .setCustomId(`c4d_${c}_${Date.now()}`)
+      .setLabel("⬇️")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(disabled));
   }
-  const grid = new ActionRowBuilder();
-  for (let r = 0; r < ROWS; r++) {
-    const cells = board[r].map((cell) => (cell ? cell : "⚪"));
-    const colRow = new ActionRowBuilder();
-    for (let c = 0; c < COLS; c++) {
-      colRow.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`c4c_${r}_${c}_${Date.now()}`)
-          .setLabel(cells[c])
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(true),
-      );
-    }
-    grid.addComponents(colRow);
-  }
-  rows.push(grid);
-  return rows;
+  const row1 = new ActionRowBuilder().addComponents(btns.slice(0, 4));
+  const row2 = new ActionRowBuilder().addComponents(btns.slice(4, 7));
+  return [row1, row2];
 }
 
 function checkWin(board, player) {
@@ -73,12 +59,13 @@ export async function execute(message, args) {
   games.set(`${message.channelId}:${message.author.id}`, game);
   const embed = baseEmbed(COLORS.info)
     .setTitle("🔴🟡 Connect 4")
-    .setDescription(`**${message.author.username}** (🔴) vs **${opponent.username}** (🟡)\n\nTurn: **${message.author.username}**\nClick a ⬇️ to drop a token.`);
-  await message.reply({ content: `${opponent}`, embeds: [embed], components: buildBoard(game.board) });
+    .setDescription(`${renderBoard(game.board)}\n\n**${message.author.username}** (🔴) vs **${opponent.username}** (🟡)\n\nTurn: **${message.author.username}**`)
+    .setFooter({ text: "Click a column button to drop your token" });
+  await message.reply({ content: `${opponent}`, embeds: [embed], components: buildControls() });
 }
 
 export async function handleConnect4Button(interaction) {
-  if (!interaction.customId.startsWith("c4_")) return false;
+  if (!interaction.customId.startsWith("c4d_")) return false;
   const [, colStr] = interaction.customId.split("_");
   const col = parseInt(colStr, 10);
   const game = games.get(`${interaction.channelId}:${interaction.user.id}`);
@@ -97,20 +84,19 @@ export async function handleConnect4Button(interaction) {
   const p2 = await interaction.client.users.fetch(game.players[1]);
   const winner = checkWin(game.board, token);
   const embed = baseEmbed(winner ? COLORS.success : COLORS.info);
-  const disable = (rows) => rows.map((r) => ActionRowBuilder.from(r).setComponents(r.components.map((b) => ButtonBuilder.from(b).setDisabled(true))));
-  if (winner) {
-    const w = playerIdx === 0 ? p1 : p2;
-    embed.setTitle(`🏆 ${w.username} Wins!`).setDescription(`**${p1.username}** (🔴) vs **${p2.username}** (🟡)`);
+  const over = winner || game.board.every((row) => row.every((cell) => cell));
+  if (over) {
     games.delete(`${interaction.channelId}:${interaction.user.id}`);
-    return interaction.update({ embeds: [embed], components: disable(buildBoard(game.board)) });
-  }
-  if (game.board.every((row) => row.every((cell) => cell))) {
-    embed.setTitle("🤝 Draw!").setDescription(`**${p1.username}** vs **${p2.username}** — it's a draw!`);
-    games.delete(`${interaction.channelId}:${interaction.user.id}`);
-    return interaction.update({ embeds: [embed], components: disable(buildBoard(game.board)) });
+    if (winner) {
+      const w = playerIdx === 0 ? p1 : p2;
+      embed.setTitle(`🏆 ${w.username} Wins!`).setDescription(`${renderBoard(game.board)}\n\n**${p1.username}** (🔴) vs **${p2.username}** (🟡)`);
+    } else {
+      embed.setTitle("🤝 Draw!").setDescription(`${renderBoard(game.board)}\n\n**${p1.username}** vs **${p2.username}** — it's a draw!`);
+    }
+    return interaction.update({ embeds: [embed], components: buildControls(true) });
   }
   const next = game.turn === 0 ? p1 : p2;
-  embed.setTitle("🔴🟡 Connect 4").setDescription(`**${p1.username}** (🔴) vs **${p2.username}** (🟡)\n\nTurn: **${next.username}**`);
-  await interaction.update({ embeds: [embed], components: buildBoard(game.board) });
+  embed.setTitle("🔴🟡 Connect 4").setDescription(`${renderBoard(game.board)}\n\n**${p1.username}** (🔴) vs **${p2.username}** (🟡)\n\nTurn: **${next.username}**`);
+  await interaction.update({ embeds: [embed], components: buildControls() });
   return true;
 }
