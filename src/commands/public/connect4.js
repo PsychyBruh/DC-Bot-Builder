@@ -56,7 +56,7 @@ export async function execute(message, args) {
     players: [message.author.id, opponent.id],
     turn: 0,
   };
-  games.set(`${message.channelId}:${message.author.id}`, game);
+  games.set(`${message.channelId}`, game);
   const embed = baseEmbed(COLORS.info)
     .setTitle("🔴🟡 Connect 4")
     .setDescription(`${renderBoard(game.board)}\n\n**${message.author.username}** (🔴) vs **${opponent.username}** (🟡)\n\nTurn: **${message.author.username}**`)
@@ -68,8 +68,8 @@ export async function handleConnect4Button(interaction) {
   if (!interaction.customId.startsWith("c4d_")) return false;
   const [, colStr] = interaction.customId.split("_");
   const col = parseInt(colStr, 10);
-  const game = games.get(`${interaction.channelId}:${interaction.user.id}`);
-  if (!game) return interaction.reply({ content: "❌ Game not found or not yours", ephemeral: true });
+  const game = games.get(`${interaction.channelId}`);
+  if (!game) return interaction.reply({ content: "❌ No active game in this channel", ephemeral: true });
   if (!game.players.includes(interaction.user.id)) return interaction.reply({ content: "❌ Not your game", ephemeral: true });
   const playerIdx = game.players.indexOf(interaction.user.id);
   if (playerIdx !== game.turn) return interaction.reply({ content: "❌ Not your turn", ephemeral: true });
@@ -86,7 +86,7 @@ export async function handleConnect4Button(interaction) {
   const embed = baseEmbed(winner ? COLORS.success : COLORS.info);
   const over = winner || game.board.every((row) => row.every((cell) => cell));
   if (over) {
-    games.delete(`${interaction.channelId}:${interaction.user.id}`);
+    games.delete(`${interaction.channelId}`);
     if (winner) {
       const w = playerIdx === 0 ? p1 : p2;
       embed.setTitle(`🏆 ${w.username} Wins!`).setDescription(`${renderBoard(game.board)}\n\n**${p1.username}** (🔴) vs **${p2.username}** (🟡)`);

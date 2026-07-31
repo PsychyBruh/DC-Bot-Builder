@@ -51,7 +51,7 @@ export async function execute(message, args) {
     players: [message.author.id, opponent.id],
     turn: 0,
   };
-  games.set(`${message.channelId}:${message.author.id}`, game);
+  games.set(`${message.channelId}`, game);
   const embed = baseEmbed(COLORS.info)
     .setTitle("❌⭕ Tic Tac Toe")
     .setDescription(`**${message.author.username}** (❌) vs **${opponent.username}** (⭕)\n\nTurn: **${message.author.username}**`);
@@ -62,9 +62,9 @@ export async function handleTttButton(interaction) {
   if (!interaction.customId.startsWith("ttt_")) return false;
   const [_, idxStr] = interaction.customId.split("_");
   const idx = parseInt(idxStr, 10);
-  const game = games.get(`${interaction.channelId}:${interaction.user.id}`);
+  const game = games.get(`${interaction.channelId}`);
   if (!game) {
-    return interaction.reply({ content: "❌ Game not found or not yours", ephemeral: true });
+    return interaction.reply({ content: "❌ No active game in this channel", ephemeral: true });
   }
   if (!game.players.includes(interaction.user.id)) {
     return interaction.reply({ content: "❌ Not your game", ephemeral: true });
@@ -82,13 +82,13 @@ export async function handleTttButton(interaction) {
   const p2 = await interaction.client.users.fetch(game.players[1]);
   if (winner === "draw") {
     embed.setTitle("🤝 Draw!").setDescription(`**${p1.username}** vs **${p2.username}**\n\nIt's a draw!`);
-    games.delete(`${interaction.channelId}:${interaction.user.id}`);
+    games.delete(`${interaction.channelId}`);
     return interaction.update({ embeds: [embed], components: buildBoard(game.board).map((r) => ActionRowBuilder.from(r).setComponents(r.components.map((b) => ButtonBuilder.from(b).setDisabled(true)))) });
   }
   if (winner) {
     const winnerUser = winner === "❌" ? p1 : p2;
     embed.setTitle(`🏆 ${winnerUser.username} Wins!`).setDescription(`**${p1.username}** (❌) vs **${p2.username}** (⭕)`);
-    games.delete(`${interaction.channelId}:${interaction.user.id}`);
+    games.delete(`${interaction.channelId}`);
     return interaction.update({ embeds: [embed], components: buildBoard(game.board).map((r) => ActionRowBuilder.from(r).setComponents(r.components.map((b) => ButtonBuilder.from(b).setDisabled(true)))) });
   }
   const nextUser = game.turn === 0 ? p1 : p2;
