@@ -1,7 +1,7 @@
 import { EmbedBuilder } from "discord.js";
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, adjustBalance } from "../../storage/users.js";
+import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
 
 export const name = "coinflip";
 export const description = "Flip a coin. Optional bet (e.g. !coinflip 100)";
@@ -23,12 +23,14 @@ export async function execute(message, args) {
 
   let resultText = "";
   if (bet > 0) {
+    adjustBalance(message.author.id, -bet);
     const won = Math.random() < 0.45;
     if (won) {
       adjustBalance(message.author.id, bet);
+      updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + bet; });
       resultText = `\n${EMOJIS.coin} You won **${bet.toLocaleString()}** coins!`;
     } else {
-      adjustBalance(message.author.id, -bet);
+      updateUser(message.author.id, (u) => { u.coinsLost = (u.coinsLost || 0) + bet; });
       resultText = `\n${EMOJIS.cross} You lost **${bet.toLocaleString()}** coins.`;
     }
   }

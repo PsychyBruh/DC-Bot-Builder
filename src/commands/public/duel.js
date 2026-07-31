@@ -19,6 +19,8 @@ export async function execute(message, args) {
   const bal2 = getUser(target.id).balance || 0;
   if (bal1 < wager) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You don't have ${wager} coins (balance: ${bal1.toLocaleString()})`)] });
   if (bal2 < wager) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} doesn't have ${wager} coins`)] });
+  adjustBalance(message.author.id, -wager);
+  adjustBalance(target.id, -wager);
 
   const embed = baseEmbed(COLORS.gold)
     .setTitle(`${EMOJIS.cross}⚔️ Duel Challenge`)
@@ -29,20 +31,21 @@ export async function execute(message, args) {
   collector.on("collect", async (m) => {
     const winner = Math.random() < 0.5 ? message.author : target;
     const loser = winner.id === message.author.id ? target : message.author;
-    adjustBalance(winner.id, wager);
-    adjustBalance(loser.id, -wager);
+    adjustBalance(winner.id, wager * 2);
     const { updateUser } = await import("../../storage/users.js");
     updateUser(winner.id, (u) => { u.duelsWon = (u.duelsWon || 0) + 1; });
     updateUser(loser.id, (u) => { u.duelsLost = (u.duelsLost || 0) + 1; });
     const result = baseEmbed(COLORS.gold)
       .setTitle(`${EMOJIS.trophy} Duel Result`)
-      .setDescription(`**${winner.username}** wins **${(wager * 2).toLocaleString()}** coins!`)
+      .setDescription(`**${winner.username}** wins **${(wager * 2).toLocaleString()}** coins!\n\nBoth players' wagers were deducted upfront.`)
       .setFooter({ text: `Loser: ${loser.username}` });
     await message.channel.send({ embeds: [result] });
   });
   collector.on("end", (_, reason) => {
     if (reason === "time") {
-      reply.edit({ embeds: [baseEmbed(COLORS.warning).setDescription("⏰ Challenge expired.")] });
+      adjustBalance(message.author.id, wager);
+      adjustBalance(target.id, wager);
+      reply.edit({ embeds: [baseEmbed(COLORS.warning).setDescription("⏰ Challenge expired. Wagers refunded.")] });
     }
   });
 }

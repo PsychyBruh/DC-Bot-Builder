@@ -1,7 +1,7 @@
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import { getUser, adjustBalance } from "../../storage/users.js";
+import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
 
 const games = new Map();
 const DECK = [];
@@ -28,6 +28,7 @@ export async function execute(message, args) {
   const user = getUser(message.author.id);
   const bal = user.balance || 0;
   if (bal < bet) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`❌ Not enough coins. You have ${bal}.`)] });
+  adjustBalance(message.author.id, -bet);
   const game = { deck: shuffle(DECK), player: [], dealer: [], bet, done: false };
   game.player.push(game.deck.pop(), game.deck.pop());
   game.dealer.push(game.deck.pop(), game.deck.pop());
@@ -54,13 +55,16 @@ async function endGame(interaction, game) {
   else if (d > p) outcome = "lose";
   let coins = 0;
   if (outcome === "win") coins = game.bet;
-  else if (outcome === "bust" || outcome === "lose") coins = -game.bet;
-  adjustBalance(interaction.user.id, coins);
+  else if (outcome === "bust" || outcome === "lose") coins = 0;
+  if (coins !== 0) adjustBalance(interaction.user.id, coins);
+  if (outcome === "win") updateUser(interaction.user.id, (u) => { u.coinsWon = (u.coinsWon || 0) + game.bet; });
+  else if (outcome === "bust" || outcome === "lose") updateUser(interaction.user.id, (u) => { u.coinsLost = (u.coinsLost || 0) + game.bet; });
   const color = outcome === "win" ? COLORS.success : outcome === "lose" || outcome === "bust" ? COLORS.danger : COLORS.warning;
   const titles = { win: "🎉 You win!", lose: "😢 You lose!", bust: "💥 Bust!", push: "🤝 Push!" };
+  const changeText = outcome === "win" ? `+${game.bet}` : outcome === "push" ? "±0" : `-${game.bet}`;
   const embed = baseEmbed(color)
     .setTitle(titles[outcome])
-    .setDescription(`**Your hand:** ${game.player.map(cardStr).join(" ")} = **${p}**\n**Dealer:** ${game.dealer.map(cardStr).join(" ")} = **${d}**\n\n${coins >= 0 ? `+${coins}` : coins} coins`);
+    .setDescription(`**Your hand:** ${game.player.map(cardStr).join(" ")} = **${p}**\n**Dealer:** ${game.dealer.map(cardStr).join(" ")} = **${d}**\n\n${changeText} coins`);
   await interaction.update({ embeds: [embed], components: [] });
   games.delete(`${interaction.channelId}:${interaction.user.id}`);
 }
