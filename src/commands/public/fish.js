@@ -28,7 +28,9 @@ export async function execute(message) {
     acc += f.p;
     if (r < acc) { fish = f; break; }
   }
-  const value = Math.floor(Math.random() * (fish.max - fish.min + 1)) + fish.min;
+  const baseValue = Math.floor(Math.random() * (fish.max - fish.min + 1)) + fish.min;
+  const isFisherman = getUser(message.author.id).job === "fisher";
+  const value = isFisherman ? baseValue * 4 : baseValue;
   adjustBalance(message.author.id, value);
   updateUser(message.author.id, (d) => {
     d.fishCaught = (d.fishCaught || 0) + 1;
@@ -39,7 +41,7 @@ export async function execute(message) {
 
   const embed = baseEmbed(fish.color)
     .setTitle(`${fish.emoji} You caught a ${fish.name}!`)
-    .setDescription(`Reeled in a **${fish.name}** and sold it for ${EMOJIS.coin} **${value.toLocaleString()}**.`)
+    .setDescription(`Reeled in a **${fish.name}** and sold it for ${EMOJIS.coin} **${value.toLocaleString()}**.${isFisherman ? `\n${"\u{1F3A3}"} **Fisherman 4x bonus!** (base ${baseValue.toLocaleString()})` : ""}`)
     .setFooter({ text: fish.legendary ? "LEGENDARY \u2014 1 in a thousand casts!" : `Cooldown: 30s | Total caught: ${(getUser(message.author.id).fishCaught || 0)}` });
   await message.reply({ embeds: [embed] });
 }
