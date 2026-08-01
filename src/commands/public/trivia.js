@@ -17,7 +17,7 @@ const TRIVIA = [
   { q: "Who wrote Romeo and Juliet?", a: ["shakespeare", "william shakespeare"], opts: ["Dickens", "Shakespeare", "Hemingway", "Twain"] },
   { q: "What is the smallest unit of life?", a: ["cell"], opts: ["Atom", "Cell", "Molecule", "Organ"] },
   { q: "What year did WW2 end?", a: ["1945"], opts: ["1943", "1944", "1945", "1946"] },
-  { q: "What is the speed of light approximately?", a: ["299792458", "300000000", "3x10^8"], opts: ["300 km/s", "3000 km/s", "300,000 km/s", "300,000,000 m/s"] },
+  { q: "What is the speed of light approximately?", a: ["300,000 km/s", "300,000,000 m/s", "300000 km/s", "300000000 m/s", "300000", "299792458"], opts: ["300 km/s", "3000 km/s", "300,000 km/s", "300,000,000 m/s"] },
   { q: "Who developed the theory of relativity?", a: ["einstein", "albert einstein"], opts: ["Newton", "Einstein", "Galileo", "Tesla"] },
   { q: "What is H2O?", a: ["water"], opts: ["Salt", "Water", "Sugar", "Air"] },
   { q: "How many bones are in the adult human body?", a: ["206"], opts: ["186", "206", "226", "256"] },
@@ -82,7 +82,7 @@ export async function execute(message) {
       m.reply({ embeds: [baseEmbed(COLORS.success).setTitle("\u{2705} Correct!").setDescription(`Right answer! +250 ${EMOJIS.coin}`)] });
     } else {
       adjustBalance(message.author.id, 25);
-      const correctOpt = pick.opts.find((o) => pick.a.some((a) => o.toLowerCase().includes(a)));
+      const correctOpt = shuffled.find((o) => pick.a.some((a) => o.toLowerCase().includes(a) || a.includes(o.toLowerCase()))) || pick.opts.find((o) => pick.a.some((a) => o.toLowerCase().includes(a) || a.includes(o.toLowerCase()))) || pick.a[0];
       m.reply({ embeds: [baseEmbed(COLORS.danger).setTitle("\u{274C} Wrong!").setDescription(`The answer was **${correctOpt}**. +25 ${EMOJIS.coin} for trying.`)] });
     }
   });
