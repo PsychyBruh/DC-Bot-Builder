@@ -247,13 +247,10 @@ case \"\${1:-}\" in
   update)
     cd \"\$DIR\"
     if [[ -d .git ]]; then
-      git pull --ff-only
+      bash deploy/update-bot.sh
     else
       echo \"No git repo — can't update.\"; exit 1
     fi
-    npm ci --omit=dev || npm install --omit=dev
-    systemctl restart \"\$SERVICE\"
-    echo \"Updated and restarted.\"
     ;;
   cmd)      [[ \$# -ge 2 ]] && cd \"\$DIR\" && bash -lc \"\$2\" || { echo \"Usage: botctl cmd '<cmd>'\"; exit 1; } ;;
   shell)    cd \"\$DIR\" && bash ;;
