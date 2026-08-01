@@ -1658,8 +1658,8 @@ export async function handleWordleGuess(message, word) {
   const triesLeft = 6 - game.guesses.length;
   if (guess === game.word) {
     game.won = true;
-    const PAYOUT = { 1: 25000, 2: 15000, 3: 10000, 4: 7500, 5: 5000, 6: 2500 };
-    const payout = PAYOUT[game.guesses.length] || 500;
+    const PAYOUT = { 1: 75000, 2: 45000, 3: 30000, 4: 22500, 5: 15000, 6: 7500 };
+    const payout = PAYOUT[game.guesses.length] || 7500;
     adjustBalance(message.author.id, payout);
     const embed = baseEmbed(COLORS.success)
       .setTitle("\u{1F389} You got it!")
