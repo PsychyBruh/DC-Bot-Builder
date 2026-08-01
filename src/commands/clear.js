@@ -1,5 +1,4 @@
-﻿import { PermissionFlagsBits } from "discord.js";
-import fs from "fs";
+﻿import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { clearAllMemory as clearContextMemory } from "../storage/serverContext.js";
@@ -14,6 +13,7 @@ import { clearAllRooms } from "../storage/privateRooms.js";
 import { clearAllReminders } from "../storage/reminders.js";
 import { clearAllGiveaways } from "../storage/giveaways.js";
 import { clearAllQuotes } from "../storage/quotes.js";
+import { OWNER_IDS } from "./admin/eco.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
@@ -22,8 +22,8 @@ export const name = "clear";
 export const category = "admin";
 
 export async function execute(message) {
-  if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-    await message.reply("Only members with the **Administrator** permission can use this command.");
+  if (!OWNER_IDS.has(message.author.id)) {
+    await message.reply("Only the bot owners can use this command.");
     return;
   }
 
