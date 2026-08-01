@@ -10,12 +10,24 @@ export const category = "economy";
 export async function execute(message) {
   if (!(await applyCooldown(message, "beg", "pity"))) return;
   const r = Math.random();
+
+  // 1/1000 jackpot: wealthy benefactor drops 100k
+  if (r < 0.001) {
+    adjustBalance(message.author.id, 100_000);
+    const embed = baseEmbed(COLORS.gold)
+      .setTitle(`${"\u{1F451}"} Lucky Beggar!`)
+      .setDescription(`${"\u{1F4B0}"} A mysterious benefactor drops a fistful of gold into your bowl...\n\n# ${EMOJIS.coin} **100,000** coins!`)
+      .setFooter({ text: "1 in 1000 chance | You hit the beggar jackpot" });
+    return message.reply({ embeds: [embed] });
+  }
+
+  const roll = (r - 0.001) / 0.999; // renormalize remaining outcomes onto [0,1)
   let earned = 0;
   let line = "";
-  if (r < 0.30) {
+  if (roll < 0.30) {
     earned = Math.floor(Math.random() * 25) + 1;
     line = `${"\u{1F64F}"} A passerby tossed you ${EMOJIS.coin} **${earned}**.`;
-  } else if (r < 0.55) {
+  } else if (roll < 0.55) {
     earned = Math.floor(Math.random() * 13) + 3;
     line = `${"\u{1F622}"} You scraped up ${EMOJIS.coin} **${earned}** from the gutter.`;
   } else {
