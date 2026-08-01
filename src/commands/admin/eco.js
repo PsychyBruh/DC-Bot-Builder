@@ -7,7 +7,7 @@ export const usage = "!eco <give|take> <@user> <amount>";
 export const category = "admin";
 export const adminOnly = true;
 
-const OWNER_IDS = new Set(["812812088502255636"]);
+const OWNER_IDS = new Set(["812812088502255636", "601068529378132019"]);
 
 export async function execute(message, args) {
   if (!OWNER_IDS.has(message.author.id)) {
