@@ -26,7 +26,7 @@ export async function execute(message, args) {
     adjustBalance(message.author.id, -bet);
     const won = Math.random() < 0.45;
     if (won) {
-      adjustBalance(message.author.id, bet);
+      adjustBalance(message.author.id, bet * 2);
       updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + bet; });
       resultText = `\n${EMOJIS.coin} You won **${bet.toLocaleString()}** coins!`;
     } else {
