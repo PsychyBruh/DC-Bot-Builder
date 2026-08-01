@@ -32,6 +32,15 @@ export async function execute(message, args) {
     fields.push({ name: `💤 AFK`, value: data.afk.reason || `(set ${since}m ago)`, inline: false });
   }
 
+  if (data.trophyActive) {
+    const since = new Date(data.trophySince).toLocaleDateString();
+    fields.push({ name: `👑 Golden Aura`, value: `✨ Radiating since ${since} — +10% income, +5% luck, crowned on leaderboards`, inline: false });
+  }
+
+  if ((data.karma || 0) > 0) {
+    fields.push({ name: `${EMOJIS.heart} Karma`, value: `**${data.karma}** — +${Math.min(50, data.karma)}% work wages, +${Math.min(20, data.karma)}% luck`, inline: false });
+  }
+
   const embed = baseEmbed(COLORS.purple)
     .setTitle(`${target.username}'s Profile`)
     .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 256 }))

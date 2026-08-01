@@ -59,6 +59,9 @@ function ensureDefaults(data) {
   if (data.fishCaught === undefined) data.fishCaught = 0;
   if (data.fishBest === undefined) data.fishBest = null;
   if (data.guildsSeen === undefined) data.guildsSeen = [];
+  if (data.trophyActive === undefined) data.trophyActive = false;
+  if (data.trophySince === undefined) data.trophySince = null;
+  if (data.karmaMilestones === undefined) data.karmaMilestones = [];
   return data;
 }
 

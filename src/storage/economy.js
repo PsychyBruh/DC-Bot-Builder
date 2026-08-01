@@ -39,7 +39,7 @@ export const ITEMS = [
   { id: "bread",          name: "Bread",              emoji: "\u{1F35E}", price: 50,   sell: 25, type: "consumable", heal: "hp", amount: 10, desc: "+10 HP in duels" },
   { id: "health_potion",  name: "Health Potion",    emoji: "\u{1F48A}", price: 250,  sell: 125, type: "consumable", heal: "hp", amount: 40, desc: "+40 HP in duels" },
   { id: "bribe_token",    name: "Bribe Token",       emoji: "\u{1F4B9}", price: 800,  sell: 400, type: "consumable", desc: "Avoid jail once if used before arrest" },
-  { id: "trophy",         name: "Golden Trophy",     emoji: "\u{1F3C6}", price: 5000, sell: 2500, type: "collectible", desc: "Pure status. Just for showing off." },
+  { id: "trophy",         name: "Golden Trophy",     emoji: "\u{1F3C6}", price: 5000, sell: 2500, type: "collectible", desc: "Use it for a permanent Golden Aura: +10% income, +5% luck, and a crown on leaderboards" },
 ];
 
 export const ITEM_MAP = Object.fromEntries(ITEMS.map((i) => [i.id, i]));
@@ -105,10 +105,40 @@ export function activeBooster(userId, type) {
 // Apply a coin reward with the active 2x coin boost baked in.
 // Returns the actual credited amount. Negative/deductions should NOT use this.
 export function rewardCoins(userId, amount) {
+  const u = getUser(userId);
   const boost = activeBooster(userId, "coin") ? 2 : 1;
-  const total = Math.max(0, Math.floor(amount)) * boost;
+  const aura = u.trophyActive ? 1.1 : 1;
+  const total = Math.max(0, Math.floor(amount * boost * aura));
   adjustBalance(userId, total);
   return total;
+}
+
+// ============ KARMA PERKS ============
+// Karma is earned by donating to poorer players. It grants luck, wage bonuses,
+// and one-time milestone rewards.
+export const KARMA_MILESTONES = [
+  { at: 10,   reward: 1500 },
+  { at: 25,   reward: 3750 },
+  { at: 50,   reward: 7500 },
+  { at: 100,  reward: 15000 },
+  { at: 250,  reward: 37500 },
+  { at: 500,  reward: 75000, trophy: true },
+  { at: 1000, reward: 150000, trophy: true },
+];
+
+// Luck from karma (+1% per karma) + Golden Aura (+5%); capped at +20%.
+export function luckBonus(userId) {
+  const u = getUser(userId);
+  const karma = (u.karma || 0) * 0.01;
+  const aura = u.trophyActive ? 0.05 : 0;
+  return Math.min(0.2, karma + aura);
+}
+
+// Karma wage bonus: +1% of the shift's earnings per karma, capped at +50%.
+export function karmaWageBonus(userId, base) {
+  const u = getUser(userId);
+  const pct = Math.min(0.5, (u.karma || 0) * 0.01);
+  return Math.floor(base * pct);
 }
 
 export function setBooster(userId, type, durationMs) {

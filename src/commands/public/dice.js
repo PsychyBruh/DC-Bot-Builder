@@ -1,7 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
-import { activeBooster, rewardCoins } from "../../storage/economy.js";
+import { activeBooster, rewardCoins, luckBonus } from "../../storage/economy.js";
 
 export const name = "dice";
 export const description = "Roll 2d6; sum >= 8 doubles your bet, <=6 loses.";
@@ -15,9 +15,9 @@ export async function execute(message, args) {
   const bal = getUser(message.author.id).balance || 0;
   if (bal < bet) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Insufficient balance (${bal.toLocaleString()}).`)] });
 
-  let luck = activeBooster(message.author.id, "luck") ? 0.1 : 0;
+  let luck = (activeBooster(message.author.id, "luck") ? 0.1 : 0) + luckBonus(message.author.id);
   let d1, d2;
-  if (luck && Math.random() < luck) {
+  if (luck > 0 && Math.random() < Math.min(0.35, luck)) {
     d1 = Math.floor(Math.random() * 3) + 4;
     d2 = Math.floor(Math.random() * 3) + 4;
   } else {

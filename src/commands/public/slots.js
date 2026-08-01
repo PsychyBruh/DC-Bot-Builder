@@ -1,7 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance } from "../../storage/users.js";
-import { rewardCoins } from "../../storage/economy.js";
+import { rewardCoins, luckBonus } from "../../storage/economy.js";
 
 export const name = "slots";
 export const description = "Slot machine. Default bet 50. !slots 100";
@@ -31,8 +31,15 @@ export async function execute(message, args) {
 
   const spin = [];
   for (let i = 0; i < 3; i++) spin.push(SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
-  const key = spin.join("");
-  const multiplier = PAYOUTS[key] || 0;
+  let key = spin.join("");
+  let multiplier = PAYOUTS[key] || 0;
+  let lucky = false;
+  // Karma / Golden Aura luck: chance to re-spin and keep the better result
+  if (Math.random() < luckBonus(message.author.id)) {
+    const reroll = [SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)], SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)], SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]];
+    const mult2 = PAYOUTS[reroll.join("")] || 0;
+    if (mult2 > multiplier) { spin.length = 0; spin.push(...reroll); key = reroll.join(""); multiplier = mult2; lucky = true; }
+  }
   const winnings = bet * multiplier;
   if (winnings > 0) {
     rewardCoins(message.author.id, winnings);
@@ -41,7 +48,7 @@ export async function execute(message, args) {
   }
   const embed = baseEmbed(winnings > 0 ? COLORS.gold : COLORS.danger)
     .setTitle(`${EMOJIS.game} Slots ${EMOJIS.game}`)
-    .setDescription(`>>> **${spin.join(" | ")}**\n\n${winnings > 0 ? `${EMOJIS.trophy} **WINNER!** +${winnings.toLocaleString()} coins (${multiplier}x)` : `${EMOJIS.cross} Better luck next time`}`)
+    .setDescription(`>>> **${spin.join(" | ")}**\n\n${winnings > 0 ? `${EMOJIS.trophy} **WINNER!** +${winnings.toLocaleString()} coins (${multiplier}x)${lucky ? ` ${"\u{1F340}"} lucky re-spin!` : ""}` : `${EMOJIS.cross} Better luck next time`}`)
     .setFooter({ text: `Bet: ${bet.toLocaleString()} • New balance: ${(getUser(message.author.id).balance).toLocaleString()}` });
   await message.reply({ embeds: [embed] });
 }

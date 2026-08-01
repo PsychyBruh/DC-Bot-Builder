@@ -24,7 +24,8 @@ export async function execute(message) {
     const { owed } = computePropertyAccrual(u);
     lines.push(`${prop.emoji} **Property:** ${prop.name} (${EMOJIS.coin} ${prop.earnRate}/h)${owed > 0 ? ` \u2014 ${EMOJIS.coin} ${owed.toLocaleString()} unclaimed (\`!collect\`)` : ""}`);
   }
-  if ((u.karma || 0) > 0) lines.push(`${EMOJIS.heart} **Karma:** ${u.karma}`);
+  if ((u.karma || 0) > 0) lines.push(`${EMOJIS.heart} **Karma:** ${u.karma} \u2014 +${Math.min(50, u.karma)}% work wages, +${Math.min(20, u.karma)}% luck`);
+  if (u.trophyActive) lines.push(`${"\u{1F451}"} **Golden Aura:** active ${"\u{2728}"} \u2014 +10% income, +5% luck, crowned on leaderboards`);
   if (u.jailed && u.jailed.until > Date.now()) lines.push(`${"\u{1F6AB}"} **Jailed** until ${new Date(u.jailed.until).toLocaleTimeString()}`);
 
   const embed = baseEmbed(COLORS.gold)

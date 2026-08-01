@@ -1,7 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
-import { activeBooster, rewardCoins } from "../../storage/economy.js";
+import { activeBooster, rewardCoins, luckBonus } from "../../storage/economy.js";
 
 export const name = "roulette";
 export const description = "European roulette (0-36). !roulette <bet> <red|black|green|number>";
@@ -36,11 +36,11 @@ export async function execute(message, args) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Pick red, black, green, or a number 0-36.`)] });
   }
 
-  // Luck charm shifts win chance
-  let luck = activeBooster(message.author.id, "luck") ? 0.05 : 0;
+  // Luck charm, karma, and Golden Aura shift win chance
+  let luck = (activeBooster(message.author.id, "luck") ? 0.05 : 0) + luckBonus(message.author.id);
 
   let spin;
-  if (luck && Math.random() < luck && target.typeof === "color") {
+  if (luck > 0 && Math.random() < Math.min(0.25, luck) && target.typeof === "color") {
     spin = target.value === "red" ? RED_SET.values().next().value : [...RED_SET][Math.floor(Math.random() * RED_SET.size)];
   } else {
     spin = Math.floor(Math.random() * 37);

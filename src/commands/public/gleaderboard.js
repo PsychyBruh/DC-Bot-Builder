@@ -22,7 +22,7 @@ export async function execute(message) {
   if (all.length === 0) {
     return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("No data yet")] });
   }
-  const ranked = await Promise.all(all.map(async (u) => ({ id: u.id, nw: await netWorthFor(u) })));
+  const ranked = await Promise.all(all.map(async (u) => ({ id: u.id, nw: await netWorthFor(u), aura: !!u.trophyActive })));
   ranked.sort((a, b) => b.nw - a.nw);
   const top = ranked.slice(0, 10);
 
@@ -33,7 +33,8 @@ export async function execute(message) {
       name = user.username;
     } catch {}
     const medal = i === 0 ? "\u{1F947}" : i === 1 ? "\u{1F948}" : i === 2 ? "\u{1F949}" : `**${i + 1}.**`;
-    return `${medal} **${name}** \u2014 ${EMOJIS.coin} **${u.nw.toLocaleString()}**`;
+    const crown = u.aura ? "\u{1F451} " : "";
+    return `${medal} ${crown}**${name}**${u.aura ? " \u{2728}" : ""} \u2014 ${EMOJIS.coin} **${u.nw.toLocaleString()}**`;
   }));
   const embed = baseEmbed(COLORS.purple)
     .setTitle(`${"\u{1F30D}"} Global Leaderboard \u2014 Net Worth`)

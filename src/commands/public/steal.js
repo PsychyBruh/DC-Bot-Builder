@@ -1,7 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance, updateUser, userExists } from "../../storage/users.js";
-import { activeBooster, isJailed, jailUser, freeFromJail } from "../../storage/economy.js";
+import { activeBooster, isJailed, jailUser, freeFromJail, luckBonus } from "../../storage/economy.js";
 import { claimBounty, totalBounty } from "../../storage/bounties.js";
 
 export const name = "steal";
@@ -45,9 +45,10 @@ export async function execute(message, args) {
   const targetBal = getUser(target.id).balance || 0;
   if (targetBal < 1) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} has nothing to steal.`)] });
 
-  // Success chance: 30%. Shielded luck users gain +5% per luck booster — only meaningful for thief luck.
+  // Success chance: 30%. Luck charm +5%, karma/Golden Aura luck also apply.
   let chance = 0.30;
   if (activeBooster(message.author.id, "luck")) chance += 0.05;
+  chance += luckBonus(message.author.id);
   const success = Math.random() < chance;
 
   if (!success) {

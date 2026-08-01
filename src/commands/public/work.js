@@ -1,5 +1,5 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
-import { JOBS, PROPERTY_MAP, activeBooster, rewardCoins, computePropertyAccrual } from "../../storage/economy.js";
+import { JOBS, PROPERTY_MAP, activeBooster, rewardCoins, computePropertyAccrual, karmaWageBonus } from "../../storage/economy.js";
 import { getUser, adjustBalance, updateUser, addXp } from "../../storage/users.js";
 
 export const name = "work";
@@ -29,10 +29,11 @@ export async function execute(message) {
   // Compute earnings: base + variance + level bonus (property income is separate—claimed via !collect)
   const variance = Math.floor(Math.random() * 6) - 3; // -3..+3
   const earned = job.base + variance + (u.level || 0) * 2;
+  const karmaBonus = karmaWageBonus(message.author.id, earned);
 
   // Coin booster 2x handled inside rewardCoins
   const coinBoost = activeBooster(message.author.id, "coin");
-  const total = rewardCoins(message.author.id, Math.max(0, earned));
+  const total = rewardCoins(message.author.id, Math.max(0, earned + karmaBonus));
   updateUser(message.author.id, (d) => {
     d.lastWork = now;
     d.jobsWorked = (d.jobsWorked || 0) + 1;
@@ -49,6 +50,7 @@ export async function execute(message) {
     `${job.emoji} **${message.author.username}** worked as a **${job.name}**`,
     `${EMOJIS.coin} Earned **${total.toLocaleString()}** coins${coinBoost ? " (2x coin boost)" : ""}${variance > 0 ? " (good day!)" : variance < 0 ? " (slow day)" : ""}`,
   ];
+  if (karmaBonus > 0) lines.push(`${EMOJIS.heart} Karma wage bonus: **${karmaBonus.toLocaleString()}** coins (+${Math.min(50, u.karma || 0)}%)`);
   // Always show property status so users remember to !collect
   if (u.property && PROPERTY_MAP[u.property]) {
     const prop = PROPERTY_MAP[u.property];
