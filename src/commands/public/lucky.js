@@ -1,6 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { adjustBalance } from "../../storage/users.js";
+import { rewardCoins } from "../../storage/economy.js";
 
 export const name = "lucky";
 export const description = "Free daily lucky draw — no cost, 12h cooldown, up to 50k jackpot.";
@@ -37,12 +37,12 @@ export async function execute(message) {
   } else {
     payout = Math.floor(Math.random() * 40) + 10; tier = "Tiny"; emoji = EMOJIS.coin;
   }
-  adjustBalance(message.author.id, payout);
+  const won = rewardCoins(message.author.id, payout);
   updateUser(message.author.id, (d) => { d.lastLucky = now; return d; });
-  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "lucky"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`lucky ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
+  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "lucky"); if (c) { rewardCoins(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`lucky ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
   const embed = baseEmbed(COLORS.gold)
     .setTitle(`${emoji} Lucky Draw — ${tier}`)
-    .setDescription(`You drew a ${tier.toLowerCase()} prize: ${EMOJIS.coin} **${payout.toLocaleString()}**!`)
+    .setDescription(`You drew a ${tier.toLowerCase()} prize: ${EMOJIS.coin} **${won.toLocaleString()}**!`)
     .setFooter({ text: "12h cooldown | 0.1% chance for the 50k jackpot" });
   await message.reply({ embeds: [embed] });
 }

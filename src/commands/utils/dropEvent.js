@@ -1,5 +1,5 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
-import { adjustBalance } from "../../storage/users.js";
+import { rewardCoins } from "../../storage/economy.js";
 
 // In-memory map: guildId -> { channelId, ts } of the most recently active text channel.
 // Updated by messageCreate via recordActivity(). Used by startDropEvent() to know where to post.
@@ -53,8 +53,8 @@ async function fireDrop(client) {
     const reaction = collected.first();
     const winner = reaction.users.cache.find((u) => !u.bot);
     if (!winner) return;
-    adjustBalance(winner.id, PRIZE);
-    await msg.reply({ embeds: [baseEmbed(COLORS.success).setTitle(`${EMOJIS.trophy} Winner!`).setDescription(`<@${winner.id}> reacted first and won ${EMOJIS.coin} **${PRIZE.toLocaleString()}**!`)] }).catch(() => {});
+    const won = rewardCoins(winner.id, PRIZE);
+    await msg.reply({ embeds: [baseEmbed(COLORS.success).setTitle(`${EMOJIS.trophy} Winner!`).setDescription(`<@${winner.id}> reacted first and won ${EMOJIS.coin} **${won.toLocaleString()}**!${won !== PRIZE ? `\n**2x coin boost applied!** (base ${PRIZE.toLocaleString()})` : ""}`)] }).catch(() => {});
   } catch (err) {
     console.error("drop event failed:", err.message);
   }

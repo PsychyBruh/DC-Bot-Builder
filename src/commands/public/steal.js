@@ -71,20 +71,20 @@ export async function execute(message, args) {
   // Success: steal min(targetBal, 50..MAX_STEAL)
   const stolen = Math.min(targetBal, Math.floor(Math.random() * (MAX_STEAL - 50 + 1)) + 50);
   adjustBalance(target.id, -stolen);
-  adjustBalance(message.author.id, stolen);
+  const stolenWon = rewardCoins(message.author.id, stolen);
   updateUser(message.author.id, (u) => { u.stealFails = 0; return u; });
 
   // Claim bounties on target
   const bountyPayout = claimBounty(message.author.id, target.id);
   let bountyLine = "";
   if (bountyPayout > 0) {
-    adjustBalance(message.author.id, bountyPayout);
-    bountyLine = `\n\n${"\u{1F4B0}"} You also collected a **${bountyPayout.toLocaleString()}** bounty on ${target.username}!`;
+    const bountyWon = rewardCoins(message.author.id, bountyPayout);
+    bountyLine = `\n\n${"\u{1F4B0}"} You also collected a **${bountyWon.toLocaleString()}** bounty on ${target.username}!${bountyWon !== bountyPayout ? `\n**2x coin boost applied!** (base ${bountyPayout.toLocaleString()})` : ""}`;
   }
 
   const embed = baseEmbed(COLORS.success)
     .setTitle(`${"\u{1F575}\uFE0F"} Steal Success`)
-    .setDescription(`You robbed ${EMOJIS.coin} **${stolen.toLocaleString()}** from **${target.username}**!${bountyLine}`)
+    .setDescription(`You robbed ${EMOJIS.coin} **${stolenWon.toLocaleString()}** from **${target.username}**!${stolenWon !== stolen ? `\n**2x coin boost applied!** (base ${stolen.toLocaleString()})` : ""}${bountyLine}`)
     .setFooter({ text: `\u2694\uFE0F Watch out for revenge! They may place a bounty on you.` });
   await message.reply({ embeds: [embed] });
 }

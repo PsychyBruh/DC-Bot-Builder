@@ -2,6 +2,7 @@ import { baseEmbed, COLORS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
+import { rewardCoins } from "../../storage/economy.js";
 
 const games = new Map();
 const DECK = [];
@@ -59,10 +60,11 @@ async function endGameAtStart(message, game) {
   else if (d > 21 || p > d) { outcome = "blackjack"; payout = Math.floor(game.bet * 2.5); } // 3:2 profit
   else if (d === p) { outcome = "push"; payout = game.bet; } // tie
   else { outcome = "lose"; payout = 0; }
-  if (payout) adjustBalance(message.author.id, payout);
+  if (payout && outcome === "blackjack") payout = rewardCoins(message.author.id, payout);
+  else if (payout && outcome === "push") adjustBalance(message.author.id, payout);
   if (outcome === "blackjack") updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + (payout - game.bet); });
   else if (outcome === "bust" || outcome === "lose") updateUser(message.author.id, (u) => { u.coinsLost = (u.coinsLost || 0) + game.bet; });
-  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "gamble"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`gamble ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
+  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "gamble"); if (c) { rewardCoins(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`gamble ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
   const color = outcome === "blackjack" ? COLORS.success : outcome === "lose" || outcome === "bust" ? COLORS.danger : COLORS.warning;
   const titles = { blackjack: "🃑 Natural Blackjack!", lose: "😢 You lose!", bust: "💥 Bust!", push: "🤝 Push!" };
   const changeText = outcome === "blackjack" ? `+${payout - game.bet}` : outcome === "push" ? "±0" : `-${game.bet}`;
@@ -87,7 +89,8 @@ async function endGame(interaction, game) {
   let payout = 0;
   if (outcome === "win") payout = game.bet * 2;
   else if (outcome === "push") payout = game.bet;
-  if (payout) adjustBalance(interaction.user.id, payout);
+  if (payout && outcome === "win") payout = rewardCoins(interaction.user.id, payout);
+  else if (payout && outcome === "push") adjustBalance(interaction.user.id, payout);
   const profit = payout - game.bet;
   if (profit > 0) updateUser(interaction.user.id, (u) => { u.coinsWon = (u.coinsWon || 0) + profit; });
   else updateUser(interaction.user.id, (u) => { u.coinsLost = (u.coinsLost || 0) + Math.abs(profit); });

@@ -1,7 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
-import { activeBooster } from "../../storage/economy.js";
+import { activeBooster, rewardCoins } from "../../storage/economy.js";
 
 export const name = "dice";
 export const description = "Roll 2d6; sum >= 8 doubles your bet, <=6 loses.";
@@ -33,9 +33,9 @@ export async function execute(message, args) {
   let line;
   if (sum >= 8) {
     won = true;
-    adjustBalance(message.author.id, bet * 2);
-    updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + bet; });
-    line = `${EMOJIS.coin} \u{1F389} Sum **${sum}** \u2265 8 \u2014 you won **${bet.toLocaleString()}** coins!`;
+    const winAmt = rewardCoins(message.author.id, bet * 2);
+    updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + (winAmt - bet); });
+    line = `${EMOJIS.coin} \u{1F389} Sum **${sum}** \u2265 8 \u2014 you won **${(winAmt - bet).toLocaleString()}** coins!`;
   } else if (sum <= 6) {
     updateUser(message.author.id, (u) => { u.coinsLost = (u.coinsLost || 0) + bet; });
     line = `${EMOJIS.cross} Sum **${sum}** \u2264 6 \u2014 you lost **${bet.toLocaleString()}** coins.`;

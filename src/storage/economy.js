@@ -1,4 +1,4 @@
-import { getUser, updateUser } from "./users.js";
+import { getUser, updateUser, adjustBalance } from "./users.js";
 
 // ============ JOBS ============
 export const JOBS = [
@@ -100,6 +100,15 @@ export function activeBooster(userId, type) {
   const u = getUser(userId);
   const until = u.boosters?.[type];
   return until && until > Date.now() ? until : null;
+}
+
+// Apply a coin reward with the active 2x coin boost baked in.
+// Returns the actual credited amount. Negative/deductions should NOT use this.
+export function rewardCoins(userId, amount) {
+  const boost = activeBooster(userId, "coin") ? 2 : 1;
+  const total = Math.max(0, Math.floor(amount)) * boost;
+  adjustBalance(userId, total);
+  return total;
 }
 
 export function setBooster(userId, type, durationMs) {

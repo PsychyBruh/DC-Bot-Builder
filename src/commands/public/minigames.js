@@ -1,6 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, adjustBalance } from "../../storage/users.js";
+import { getUser } from "../../storage/users.js";
+import { rewardCoins } from "../../storage/economy.js";
 
 export const name = "minigames";
 export const description = "Quick free mini-game vs the bot for coins. !minigames <rps|coinflip|hilo>";
@@ -15,7 +16,7 @@ export async function execute(message, args) {
   const sub = (args[0] || "").toLowerCase();
   const bal = getUser(message.author.id).balance || 0;
   const isPlay = ["rps", "coinflip", "hilo"].includes(sub);
-  if (isPlay) try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "minigames"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`minigames ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
+  if (isPlay) try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "minigames"); if (c) { rewardCoins(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`minigames ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
 
   if (sub === "rps") {
     const pick = (args[1] || "").toLowerCase();
@@ -31,10 +32,10 @@ export async function execute(message, args) {
       (pick === "scissors" && botChoice === "paper")
     ) { result = "Win"; payout = PAYOUT.rps; }
     else { result = "Lose"; payout = 0; }
-    adjustBalance(message.author.id, payout);
+    const wonAmt = payout ? rewardCoins(message.author.id, payout) : 0;
     return message.reply({ embeds: [baseEmbed(result === "Win" ? COLORS.success : result === "Draw" ? COLORS.warning : COLORS.danger)
       .setTitle(`${EMO[pick]} vs ${EMO[botChoice]} \u2014 ${result}`)
-      .setDescription(`You: ${EMO[pick]} | Bot: ${EMO[botChoice]}${payout ? `\n+${EMOJIS.coin} **${payout.toLocaleString()}**` : ""}`)] });
+      .setDescription(`You: ${EMO[pick]} | Bot: ${EMO[botChoice]}${wonAmt ? `\n+${EMOJIS.coin} **${wonAmt.toLocaleString()}**${wonAmt !== payout ? ` (2x boost, base ${payout})` : ""}` : ""}`)] });
   }
 
   if (sub === "coinflip") {
@@ -45,10 +46,10 @@ export async function execute(message, args) {
     const flip = Math.random() < 0.5 ? "heads" : "tails";
     const won = pick === flip;
     const payout = won ? PAYOUT.coinflip : 0;
-    adjustBalance(message.author.id, payout);
+    const wonAmt = payout ? rewardCoins(message.author.id, payout) : 0;
     return message.reply({ embeds: [baseEmbed(won ? COLORS.success : COLORS.danger)
       .setTitle(`${EMO[flip]} ${won ? "You win!" : "You lose"}`)
-      .setDescription(`It landed on **${flip}**.${won ? `\n+${EMOJIS.coin} **${payout.toLocaleString()}**` : ""}`)] });
+      .setDescription(`It landed on **${flip}**.${wonAmt ? `\n+${EMOJIS.coin} **${wonAmt.toLocaleString()}**${wonAmt !== payout ? ` (2x boost, base ${payout})` : ""}` : ""}`)] });
   }
 
   if (sub === "hilo") {
@@ -64,10 +65,10 @@ export async function execute(message, args) {
     else if (pick === "higher") won = second > first;
     else won = second < first;
     const payout = won ? PAYOUT.hilo : 0;
-    adjustBalance(message.author.id, payout);
+    const wonAmt = payout ? rewardCoins(message.author.id, payout) : 0;
     return message.reply({ embeds: [baseEmbed(won ? COLORS.success : COLORS.danger)
       .setTitle(`First: ${first} \u2192 Second: ${second}`)
-      .setDescription(`You guessed **${pick}**. ${won ? "Correct!" : "Wrong!"}${won ? `\n+${EMOJIS.coin} **${payout.toLocaleString()}**` : ""}`)] });
+      .setDescription(`You guessed **${pick}**. ${won ? "Correct!" : "Wrong!"}${wonAmt ? `\n+${EMOJIS.coin} **${wonAmt.toLocaleString()}**${wonAmt !== payout ? ` (2x boost, base ${payout})` : ""}` : ""}`)] });
   }
 
   // No sub: show menu

@@ -1,6 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance } from "../../storage/users.js";
+import { rewardCoins } from "../../storage/economy.js";
 
 export const name = "slots";
 export const description = "Slot machine. Default bet 50. !slots 100";
@@ -34,7 +35,7 @@ export async function execute(message, args) {
   const multiplier = PAYOUTS[key] || 0;
   const winnings = bet * multiplier;
   if (winnings > 0) {
-    adjustBalance(message.author.id, winnings);
+    rewardCoins(message.author.id, winnings);
     const { updateUser } = await import("../../storage/users.js");
     updateUser(message.author.id, (u) => { u.slotsWon = (u.slotsWon || 0) + 1; });
   }

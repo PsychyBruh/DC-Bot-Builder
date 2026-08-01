@@ -1,7 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance } from "../../storage/users.js";
-import { addItem, ITEM_MAP } from "../../storage/economy.js";
+import { addItem, ITEM_MAP, rewardCoins } from "../../storage/economy.js";
 
 export const name = "search";
 export const description = "Search a random location for coins (and sometimes items).";
@@ -27,19 +27,19 @@ export async function execute(message) {
   if (!(await applyCooldown(message, "search", "pity"))) return;
   const loc = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)];
   const r = Math.random();
-  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "search"); if (c) { adjustBalance(message.author.id, c.reward); await notifyQuestComplete(message, c); } } catch {}
+  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "search"); if (c) { rewardCoins(message.author.id, c.reward); await notifyQuestComplete(message, c); } } catch {}
 
   if (r < 0.40) {
     // 40%: 20-80c
     const amt = Math.floor(Math.random() * 61) + 20;
-    adjustBalance(message.author.id, amt);
-    return reply(message, COLORS.success, `${loc.emoji} You searched ${loc.name} and found ${EMOJIS.coin} **${amt}**!`);
+    const won = rewardCoins(message.author.id, amt);
+    return reply(message, COLORS.success, `${loc.emoji} You searched ${loc.name} and found ${EMOJIS.coin} **${won}**!`);
   }
   if (r < 0.65) {
     // 25%: 5-30c
     const amt = Math.floor(Math.random() * 26) + 5;
-    adjustBalance(message.author.id, amt);
-    return reply(message, COLORS.success, `${loc.emoji} You searched ${loc.name} and found ${EMOJIS.coin} **${amt}**.`);
+    const won = rewardCoins(message.author.id, amt);
+    return reply(message, COLORS.success, `${loc.emoji} You searched ${loc.name} and found ${EMOJIS.coin} **${won}**.`);
   }
   if (r < 0.85) {
     // 20%: nothing

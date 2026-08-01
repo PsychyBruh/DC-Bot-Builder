@@ -1,5 +1,5 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
-import { JOBS, PROPERTY_MAP, activeBooster, computePropertyAccrual } from "../../storage/economy.js";
+import { JOBS, PROPERTY_MAP, activeBooster, rewardCoins, computePropertyAccrual } from "../../storage/economy.js";
 import { getUser, adjustBalance, updateUser, addXp } from "../../storage/users.js";
 
 export const name = "work";
@@ -30,11 +30,9 @@ export async function execute(message) {
   const variance = Math.floor(Math.random() * 6) - 3; // -3..+3
   const earned = job.base + variance + (u.level || 0) * 2;
 
-  // Coin booster 2x
+  // Coin booster 2x handled inside rewardCoins
   const coinBoost = activeBooster(message.author.id, "coin");
-  const boostMult = coinBoost ? 2 : 1;
-  const total = Math.max(0, earned) * boostMult;
-  adjustBalance(message.author.id, total);
+  const total = rewardCoins(message.author.id, Math.max(0, earned));
   updateUser(message.author.id, (d) => {
     d.lastWork = now;
     d.jobsWorked = (d.jobsWorked || 0) + 1;

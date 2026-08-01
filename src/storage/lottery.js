@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { adjustBalance } from "./users.js";
+import { rewardCoins } from "./economy.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOTTERY_FILE = path.join(__dirname, "..", "..", "data", "lottery.json");
@@ -58,7 +59,7 @@ export function draw(forced = false) {
   const pot = state.jackpot;
   let winnerId = null;
   if (winner) {
-    adjustBalance(winner.userId, pot);
+    rewardCoins(winner.userId, pot);
     winnerId = winner.userId;
   }
   state.tickets = [];

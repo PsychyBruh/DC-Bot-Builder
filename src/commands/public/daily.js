@@ -1,6 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
-import { getUser, adjustBalance, updateUser, addXp } from "../../storage/users.js";
-import { activeBooster } from "../../storage/economy.js";
+import { getUser, updateUser, addXp } from "../../storage/users.js";
+import { activeBooster, rewardCoins } from "../../storage/economy.js";
 
 export const name = "daily";
 export const description = "Claim your daily coin reward (streaks boost payout)";
@@ -24,8 +24,7 @@ export async function execute(message) {
   const base = 100 + bonus + milestone;
 
   const coinBoost = activeBooster(message.author.id, "coin");
-  const total = coinBoost ? base * 2 : base;
-  adjustBalance(message.author.id, total);
+  const total = rewardCoins(message.author.id, base);
   updateUser(message.author.id, (d) => {
     d.streak.dailyLast = today;
     return d;

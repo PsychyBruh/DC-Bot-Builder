@@ -2,6 +2,7 @@ import { EmbedBuilder } from "discord.js";
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
+import { rewardCoins } from "../../storage/economy.js";
 
 export const name = "coinflip";
 export const description = "Flip a coin. Optional bet (e.g. !coinflip 100)";
@@ -27,9 +28,9 @@ export async function execute(message, args) {
     try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "gamble"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`gamble ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
     const won = Math.random() < 0.45;
     if (won) {
-      adjustBalance(message.author.id, bet * 2);
-      updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + bet; });
-      resultText = `\n${EMOJIS.coin} You won **${bet.toLocaleString()}** coins!`;
+      const winAmt = rewardCoins(message.author.id, bet * 2);
+      updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + (winAmt - bet); });
+      resultText = `\n${EMOJIS.coin} You won **${(winAmt - bet).toLocaleString()}** coins!`;
     } else {
       updateUser(message.author.id, (u) => { u.coinsLost = (u.coinsLost || 0) + bet; });
       resultText = `\n${EMOJIS.cross} You lost **${bet.toLocaleString()}** coins.`;

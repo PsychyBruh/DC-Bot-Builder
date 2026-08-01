@@ -1,6 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance, updateUser, userExists } from "../../storage/users.js";
+import { rewardCoins } from "../../storage/economy.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 
 const games = new Map();
@@ -100,14 +101,14 @@ async function finishGame(message, game, channel, winnerIdx, loserIdx) {
     if (channel) await channel.send({ embeds: [emb], components: [disabledRow()] });
     return;
   }
-  adjustBalance(game.players[winnerIdx].id, game.wager * 2);
+  const wonAmt = rewardCoins(game.players[winnerIdx].id, game.wager * 2);
   updateUser(game.players[winnerIdx].id, (u) => { u.duelsWon = (u.duelsWon || 0) + 1; });
   updateUser(game.players[loserIdx].id, (u) => { u.duelsLost = (u.duelsLost || 0) + 1; });
   const win = game.players[winnerIdx];
   const lose = game.players[loserIdx];
   const emb = baseEmbed(COLORS.success)
     .setTitle(`\u{1F3C6} ${win.username} wins!`)
-    .setDescription(`\u{1F4B0} **${win.username}** takes **${(game.wager * 2).toLocaleString()}** coins!\n\nFinal HP:\n${hpBar(game.hp[winnerIdx])} ${win.username}\n${hpBar(game.hp[loserIdx])} ${lose.username}`)
+    .setDescription(`\u{1F4B0} **${win.username}** takes **${wonAmt.toLocaleString()}** coins!${wonAmt !== game.wager * 2 ? `\n**2x coin boost applied!** (base ${(game.wager * 2).toLocaleString()})` : ""}\n\nFinal HP:\n${hpBar(game.hp[winnerIdx])} ${win.username}\n${hpBar(game.hp[loserIdx])} ${lose.username}`)
     .setFooter({ text: `Loser: ${lose.username}` });
   if (channel) await channel.send({ embeds: [emb], components: [disabledRow()] });
 }

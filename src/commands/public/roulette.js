@@ -1,7 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
-import { activeBooster } from "../../storage/economy.js";
+import { activeBooster, rewardCoins } from "../../storage/economy.js";
 
 export const name = "roulette";
 export const description = "European roulette (0-36). !roulette <bet> <red|black|green|number>";
@@ -56,8 +56,7 @@ export async function execute(message, args) {
 
   let resultLine;
   if (won) {
-    const payout = bet * payoutMult;
-    adjustBalance(message.author.id, payout);
+    const payout = rewardCoins(message.author.id, bet * payoutMult);
     updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + (payout - bet); });
     resultLine = `${EMOJIS.coin} \u{1F389} You won **${(payout - bet).toLocaleString()}** coins (paid ${payout.toLocaleString()} on your ${bet} bet)!`;
   } else {

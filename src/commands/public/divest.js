@@ -1,6 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
+import { getUser, updateUser } from "../../storage/users.js";
+import { rewardCoins } from "../../storage/economy.js";
 import { getPrice } from "../../storage/market.js";
 
 export const name = "divest";
@@ -20,17 +21,17 @@ export async function execute(message, args) {
   const avgCost = u.shareCost || price;
   const fee = Math.floor(proceeds * 0.02); // 2% transaction fee
   const net = proceeds - fee;
-  adjustBalance(message.author.id, net);
+  const won = rewardCoins(message.author.id, net);
   updateUser(message.author.id, (d) => {
     d.shares = +((d.shares || 0) - shares).toFixed(4);
     if (d.shares <= 0) d.shareCost = 0;
     return d;
   });
-  const profit = net - Math.floor(shares * avgCost);
+  const profit = won - Math.floor(shares * avgCost);
 
   const embed = baseEmbed(profit >= 0 ? COLORS.success : COLORS.danger)
     .setTitle(`${"\u{1F4C9}"} Shares Sold`)
-    .setDescription(`Sold **${shares}** NOVA shares at ${EMOJIS.coin} **${price.toFixed(2)}**/share.\n\nProceeds: ${EMOJIS.coin} **${proceeds.toLocaleString()}**\nFee (2%): ${EMOJIS.coin} **${fee.toLocaleString()}**\nNet: ${EMOJIS.coin} **${net.toLocaleString()}**\n\n${profit >= 0 ? EMOJIS.coin : EMOJIS.cross} ${profit >= 0 ? "Profit" : "Loss"}: **${Math.abs(profit).toLocaleString()}** ${profit >= 0 ? "gained" : "lost"} (avg cost ${avgCost.toFixed(2)})`)
+    .setDescription(`Sold **${shares}** NOVA shares at ${EMOJIS.coin} **${price.toFixed(2)}**/share.\n\nProceeds: ${EMOJIS.coin} **${proceeds.toLocaleString()}**\nFee (2%): ${EMOJIS.coin} **${fee.toLocaleString()}**\nNet: ${EMOJIS.coin} **${won.toLocaleString()}**${won !== net ? `\n**2x coin boost applied!** (base ${net.toLocaleString()})` : ""}\n\n${profit >= 0 ? EMOJIS.coin : EMOJIS.cross} ${profit >= 0 ? "Profit" : "Loss"}: **${Math.abs(profit).toLocaleString()}** ${profit >= 0 ? "gained" : "lost"} (avg cost ${avgCost.toFixed(2)})`)
     .setFooter({ text: "Use !portfolio to see remaining holdings" });
   await message.reply({ embeds: [embed] });
 }

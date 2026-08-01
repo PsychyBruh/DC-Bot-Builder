@@ -3,7 +3,8 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, updateUser, adjustBalance } from "../../storage/users.js";
+import { getUser, updateUser } from "../../storage/users.js";
+import { rewardCoins } from "../../storage/economy.js";
 
 export const name = "trivia";
 export const description = "Answer a trivia question";
@@ -79,13 +80,13 @@ export async function execute(message) {
     updateUser(message.author.id, (u) => { u.triviaAnswered = (u.triviaAnswered || 0) + 1; });
     if (correct) {
       updateUser(message.author.id, (u) => { u.triviaScore = (u.triviaScore || 0) + 1; });
-      adjustBalance(message.author.id, CORRECT_REWARD);
-      try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "trivia"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`trivia ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
-      m.reply({ embeds: [baseEmbed(COLORS.success).setTitle("\u{2705} Correct!").setDescription(`Right answer! +${CORRECT_REWARD.toLocaleString()} ${EMOJIS.coin}`)] });
+      const won = rewardCoins(message.author.id, CORRECT_REWARD);
+      try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "trivia"); if (c) { rewardCoins(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`trivia ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
+      m.reply({ embeds: [baseEmbed(COLORS.success).setTitle("\u{2705} Correct!").setDescription(`Right answer! +${won.toLocaleString()} ${EMOJIS.coin}${won !== CORRECT_REWARD ? ` (**2x coin boost!** base ${CORRECT_REWARD.toLocaleString()})` : ""}`)] });
     } else {
-      adjustBalance(message.author.id, TRY_REWARD);
+      const won = rewardCoins(message.author.id, TRY_REWARD);
       const correctOpt = shuffled.find((o) => pick.a.some((a) => o.toLowerCase().includes(a) || a.includes(o.toLowerCase()))) || pick.opts.find((o) => pick.a.some((a) => o.toLowerCase().includes(a) || a.includes(o.toLowerCase()))) || pick.a[0];
-      m.reply({ embeds: [baseEmbed(COLORS.danger).setTitle("\u{274C} Wrong!").setDescription(`The answer was **${correctOpt}**. +${TRY_REWARD} ${EMOJIS.coin} for trying.`)] });
+      m.reply({ embeds: [baseEmbed(COLORS.danger).setTitle("\u{274C} Wrong!").setDescription(`The answer was **${correctOpt}**. +${won.toLocaleString()} ${EMOJIS.coin} for trying.`)] });
     }
   });
 
