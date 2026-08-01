@@ -1,6 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, updateUser, adjustBalance } from "../../storage/users.js";
+import { getUser, updateUser, adjustBalance, userExists } from "../../storage/users.js";
 
 export const name = "give";
 export const description = "Gift coins to another user (free up to 1000/day per receiver).";
@@ -16,6 +16,15 @@ export async function execute(message, args) {
   if (!target) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Usage: \`!give @user <amount>\``)] });
   if (target.id === message.author.id) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Can't give to yourself.`)] });
   if (target.bot) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Can't give to bots.`)] });
+  // Receiver must be in this server and have used the bot's economy
+  if (message.guild && !message.guild.members.cache.has(target.id)) {
+    try { await message.guild.members.fetch(target.id); } catch {
+      return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} isn't in this server.`)] });
+    }
+  }
+  if (!userExists(target.id)) {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} hasn't used the bot's economy yet.`)] });
+  }
   const amount = parseInt(args.find((a) => /^\d+$/.test(a)), 10) || 0;
   if (amount < 1) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Specify a positive amount.`)] });
 
@@ -37,7 +46,6 @@ export async function execute(message, args) {
   const bal = u.balance || 0;
   if (bal < total) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You don't have ${total.toLocaleString()} (balance: ${bal.toLocaleString()}).`)] });
 
-  // Apply transfers (use adjustBalance: deducts from giver, credits receiver, tracks stats)
   adjustBalance(message.author.id, -total);
   adjustBalance(target.id, actual);
   updateUser(message.author.id, (d) => {

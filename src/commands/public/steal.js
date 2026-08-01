@@ -1,6 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
+import { getUser, adjustBalance, updateUser, userExists } from "../../storage/users.js";
 import { activeBooster, isJailed, jailUser, freeFromJail } from "../../storage/economy.js";
 import { claimBounty, totalBounty } from "../../storage/bounties.js";
 
@@ -18,6 +18,17 @@ export async function execute(message, args) {
   if (!target) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Usage: \`!steal @user\``)] });
   if (target.id === message.author.id) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Can't steal from yourself.`)] });
   if (target.bot) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Bots have no coin.`)] });
+
+  // Target must be a member of this server (so you can't rob someone who isn't here)
+  if (message.guild && !message.guild.members.cache.has(target.id)) {
+    try { await message.guild.members.fetch(target.id); } catch {
+      return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} isn't in this server.`)] });
+    }
+  }
+  // Target must have used the bot's economy before — fresh users (never interacted) can't be robbed
+  if (!userExists(target.id)) {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} hasn't used the bot's economy yet. Leave them alone.`)] });
+  }
 
   // Is the thief jailed?
   const jailUntil = isJailed(message.author.id);

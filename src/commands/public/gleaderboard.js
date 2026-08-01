@@ -3,9 +3,9 @@ import { getAllUsers } from "../../storage/users.js";
 import { PROPERTY_MAP } from "../../storage/economy.js";
 import { getPrice } from "../../storage/market.js";
 
-export const name = "leaderboard";
-export const description = "Server leaderboard by net worth.";
-export const usage = "!leaderboard";
+export const name = "gleaderboard";
+export const description = "Global leaderboard by net worth (all bot users).";
+export const usage = "!gleaderboard";
 export const category = "leaderboard";
 
 async function netWorthFor(user) {
@@ -19,20 +19,10 @@ async function netWorthFor(user) {
 
 export async function execute(message) {
   const all = getAllUsers();
-  // Filter to users that are members of this guild
-  const guild = message.guild;
-  let memberIds;
-  try {
-    await guild.members.fetch();
-    memberIds = new Set(guild.members.cache.keys());
-  } catch {
-    memberIds = new Set();
+  if (all.length === 0) {
+    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("No data yet")] });
   }
-  const inGuild = all.filter((u) => memberIds.has(u.id));
-  if (inGuild.length === 0) {
-    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("No data for this server yet")] });
-  }
-  const ranked = await Promise.all(inGuild.map(async (u) => ({ id: u.id, nw: await netWorthFor(u) })));
+  const ranked = await Promise.all(all.map(async (u) => ({ id: u.id, nw: await netWorthFor(u) })));
   ranked.sort((a, b) => b.nw - a.nw);
   const top = ranked.slice(0, 10);
 
@@ -45,9 +35,9 @@ export async function execute(message) {
     const medal = i === 0 ? "\u{1F947}" : i === 1 ? "\u{1F948}" : i === 2 ? "\u{1F949}" : `**${i + 1}.**`;
     return `${medal} **${name}** \u2014 ${EMOJIS.coin} **${u.nw.toLocaleString()}**`;
   }));
-  const embed = baseEmbed(COLORS.gold)
-    .setTitle(`${"\u{1F3C6}"} Server Leaderboard \u2014 Net Worth`)
+  const embed = baseEmbed(COLORS.purple)
+    .setTitle(`${"\u{1F30D}"} Global Leaderboard \u2014 Net Worth`)
     .setDescription(lines.join("\n"))
-    .setFooter({ text: `Top 10 in ${guild.name} | Net worth = wallet + shares + property resale` });
+    .setFooter({ text: "Top 10 across all servers | Net worth = wallet + shares + property resale" });
   await message.reply({ embeds: [embed] });
 }

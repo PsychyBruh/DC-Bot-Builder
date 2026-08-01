@@ -1,6 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, adjustBalance } from "../../storage/users.js";
+import { getUser, adjustBalance, userExists } from "../../storage/users.js";
 import { placeBounty, totalBounty, getBounty } from "../../storage/bounties.js";
 
 export const name = "bounty";
@@ -18,6 +18,15 @@ export async function execute(message, args) {
   const existing = totalBounty(target.id);
 
   if (amount >= 1) {
+    // Bounty target must be in this server and have used the bot's economy
+    if (message.guild && !message.guild.members.cache.has(target.id)) {
+      try { await message.guild.members.fetch(target.id); } catch {
+        return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} isn't in this server.`)] });
+      }
+    }
+    if (!userExists(target.id)) {
+      return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} hasn't used the bot's economy yet.`)] });
+    }
     const bal = getUser(message.author.id).balance || 0;
     if (bal < amount) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You need ${EMOJIS.coin} **${amount.toLocaleString()}** (you have ${bal.toLocaleString()}).`)] });
     adjustBalance(message.author.id, -amount);

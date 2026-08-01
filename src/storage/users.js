@@ -189,3 +189,37 @@ export function getTopUsers(sortKey, limit = 10) {
   arr.sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
   return arr.slice(0, limit);
 }
+
+// Return raw user records (id + data) for server-scoped leaderboards.
+// Caller filters by guild members.
+export function getAllUsers() {
+  const arr = [];
+  for (const [uid, data] of users) arr.push({ id: uid, ...data });
+  return arr;
+}
+
+// True if a user has ever interacted with the bot's economy (so they can be targeted).
+// We treat a record as "real" if it has interacted meaningfully — balance has moved,
+// a job is set, or any economy field is non-default.
+export function userExists(userId) {
+  const u = users.get(userId);
+  if (!u) return false;
+  // Default-seeded users (just getUser'd) have the initial balance of 1000 and no
+  // other economy activity. Treat a user as "exists" if they have ANY economy signal:
+  // job, shares, property, coinsWon/coinsLost, jobsWorked, fishCaught, etc.
+  return (
+    (u.coinsWon || 0) > 0 ||
+    (u.coinsLost || 0) > 0 ||
+    !!u.job ||
+    (u.shares || 0) > 0 ||
+    !!u.property ||
+    (u.jobsWorked || 0) > 0 ||
+    (u.fishCaught || 0) > 0 ||
+    (u.triviaScore || 0) > 0 ||
+    (u.triviaAnswered || 0) > 0 ||
+    (u.duelsWon || 0) > 0 ||
+    (u.duelsLost || 0) > 0 ||
+    (u.slotsWon || 0) > 0 ||
+    u.balance !== 1000 // any non-default balance proves interaction
+  );
+}

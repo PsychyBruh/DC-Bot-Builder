@@ -1,6 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
+import { getUser, adjustBalance, updateUser, userExists } from "../../storage/users.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 
 const games = new Map();
@@ -203,6 +203,15 @@ export async function execute(message, args) {
   if (!target) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Mention an opponent`)] });
   if (target.id === message.author.id) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You can't duel yourself`)] });
   if (target.bot) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You can't duel a bot`)] });
+  // Opponent must be in this server and have used the bot's economy
+  if (message.guild && !message.guild.members.cache.has(target.id)) {
+    try { await message.guild.members.fetch(target.id); } catch {
+      return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} isn't in this server.`)] });
+    }
+  }
+  if (!userExists(target.id)) {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} hasn't used the bot's economy yet.`)] });
+  }
   const wager = parseInt(args.find((a) => /^\d+$/.test(a)), 10) || 0;
   if (wager < 1) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Specify a wager: \`!duel @user 100\``)] });
   const bal1 = getUser(message.author.id).balance || 0;

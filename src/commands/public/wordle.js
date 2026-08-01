@@ -1,5 +1,6 @@
-﻿import { baseEmbed, COLORS } from "../utils/embeds.js";
+﻿import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
+import { adjustBalance } from "../../storage/users.js";
 
 const games = new Map();
 
@@ -1657,9 +1658,12 @@ export async function handleWordleGuess(message, word) {
   const triesLeft = 6 - game.guesses.length;
   if (guess === game.word) {
     game.won = true;
+    const PAYOUT = { 1: 5000, 2: 3000, 3: 2000, 4: 1500, 5: 1000, 6: 500 };
+    const payout = PAYOUT[game.guesses.length] || 500;
+    adjustBalance(message.author.id, payout);
     const embed = baseEmbed(COLORS.success)
       .setTitle("\u{1F389} You got it!")
-      .setDescription(`${renderGuesses(game)}\n\nThe word was **${game.word}**. Solved in ${game.guesses.length}/6!`);
+      .setDescription(`${renderGuesses(game)}\n\nThe word was **${game.word}**. Solved in ${game.guesses.length}/6!\n\n${EMOJIS.coin} You earned **${payout.toLocaleString()}** coins!`);
     games.delete(`${message.channelId}:${message.author.id}`);
     await message.reply({ embeds: [embed] });
     return true;
