@@ -53,6 +53,11 @@ function ensureDefaults(data) {
   if (data.lastPropertyCollect === undefined) data.lastPropertyCollect = null;
   if (data.jobsWorked === undefined) data.jobsWorked = 0;
   if (data.giveUsed === undefined) data.giveUsed = {};
+  if (data.lastLucky === undefined) data.lastLucky = 0;
+  if (data.questProgress === undefined) data.questProgress = null;
+  if (data.questDate === undefined) data.questDate = null;
+  if (data.fishCaught === undefined) data.fishCaught = 0;
+  if (data.fishBest === undefined) data.fishBest = null;
   return data;
 }
 
@@ -144,8 +149,15 @@ export function addXp(userId, amount) {
   data.xp = (data.xp || 0) + amount;
   const oldLevel = data.level || 0;
   data.level = Math.floor((data.xp || 0) / 100);
+  let levelBonus = 0;
+  if (data.level > oldLevel) {
+    // Each level gained pays a bonus = new level × 50
+    levelBonus = data.level * 50;
+    data.balance = (data.balance || 0) + levelBonus;
+    data.coinsWon = (data.coinsWon || 0) + levelBonus;
+  }
   save();
-  return { leveledUp: data.level > oldLevel, level: data.level, xp: data.xp };
+  return { leveledUp: data.level > oldLevel, level: data.level, xp: data.xp, levelBonus };
 }
 
 export function setAfk(userId, reason) {

@@ -98,6 +98,10 @@ client.once("clientReady", async () => {
   const { startPrivateRoomCleaner } = await import("./commands/utils/privateRoomCleaner.js");
   startPrivateRoomCleaner(client);
 
+  // Random coin-drop events in active channels (every 30-60 min)
+  const { startDropEvent } = await import("./commands/utils/dropEvent.js");
+  startDropEvent(client);
+
   // Economy housekeeping: market price tick + lottery auto-draw
   const { tickMarket } = await import("./storage/market.js");
   const { checkAndDraw } = await import("./storage/lottery.js");
@@ -124,6 +128,12 @@ client.on("messageCreate", async (message) => {
 
   const { handleXp } = await import("./commands/utils/xp.js");
   try { await handleXp(message); } catch {}
+
+  // Record channel activity for the drop-event picker
+  try {
+    const { recordActivity } = await import("./commands/utils/dropEvent.js");
+    recordActivity(message);
+  } catch {}
 
   const { getRoom, touchRoom } = await import("./storage/privateRooms.js");
   if (getRoom(message.channelId)) {

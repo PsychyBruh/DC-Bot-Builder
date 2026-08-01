@@ -40,11 +40,12 @@ export async function execute(message) {
     d.jobsWorked = (d.jobsWorked || 0) + 1;
     return d;
   });
+  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "work"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`work ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
 
   // XP (doubled if xp booster active)
   const xpBoost = activeBooster(message.author.id, "xp");
   const xpAmt = xpBoost ? 20 : 10;
-  const { leveledUp, level } = addXp(message.author.id, xpAmt);
+  const { leveledUp, level, levelBonus } = addXp(message.author.id, xpAmt);
 
   const lines = [
     `${job.emoji} **${message.author.username}** worked as a **${job.name}**`,
@@ -64,6 +65,6 @@ export async function execute(message) {
     .setTitle(`${job.emoji} Shift done`)
     .setDescription(lines.join("\n"))
     .setFooter({ text: `Next shift in ${fmtCd(job.cooldown)} | Level ${level}` });
-  if (leveledUp) embed.addFields({ name: "\u{1F389} Level up!", value: `You reached level **${level}** (+2 coins/shift).` });
+  if (leveledUp) embed.addFields({ name: "\u{1F389} Level up!", value: `You reached level **${level}** (+2 coins/shift) and earned a ${EMOJIS.coin} **${(levelBonus || 0).toLocaleString()}** level-up bonus!` });
   await message.reply({ embeds: [embed] });
 }

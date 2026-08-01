@@ -27,13 +27,13 @@ export async function execute(message) {
     d.streak.weeklyLast = week;
     return d;
   });
-  const { leveledUp, level } = addXp(message.author.id, 120);
+  const { leveledUp, level, levelBonus } = addXp(message.author.id, 120);
 
   const embed = baseEmbed(COLORS.gold)
     .setTitle(`${EMOJIS.gift} Weekly Reward`)
     .setDescription(`Claimed ${EMOJIS.coin} **${total.toLocaleString()}** ${coinBoost ? "(2x coin boost) " : ""}this week!\n\n${EMOJIS.fire} Weekly Streak: **${streak}** \u2014 +${bonus} bonus`)
     .setFooter({ text: `Streak bonus caps at +5000/week (max 5750/week) | next reset in ${daysUntilNextWeek()} days` });
-  if (leveledUp) embed.addFields({ name: "\u{1F389} Level up!", value: `You reached level **${level}**.` });
+  if (leveledUp) embed.addFields({ name: "\u{1F389} Level up!", value: `You reached level **${level}** and earned a ${EMOJIS.coin} **${(levelBonus || 0).toLocaleString()}** level-up bonus!` });
   await message.reply({ embeds: [embed] });
 }
 

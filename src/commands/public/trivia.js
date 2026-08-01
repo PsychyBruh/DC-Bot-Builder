@@ -1,6 +1,6 @@
-import { baseEmbed, COLORS } from "../utils/embeds.js";
+import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, updateUser } from "../../storage/users.js";
+import { getUser, updateUser, adjustBalance } from "../../storage/users.js";
 
 export const name = "trivia";
 export const description = "Answer a trivia question";
@@ -31,35 +31,65 @@ export async function execute(message) {
   const shuffled = [...pick.opts].sort(() => Math.random() - 0.5);
 
   const embed = baseEmbed(COLORS.gold)
-    .setTitle("🧠 Trivia Question")
+    .setTitle("\u{1F9E0} Trivia Question")
     .setDescription(`>>> ${pick.q}`)
-    .addFields({ name: "Options", value: shuffled.map((o, i) => `**${["A","B","C","D"][i]})** ${o}`).join("\n") })
-    .setFooter({ text: "You have 30 seconds. +50 coins for correct, +10 for trying" });
+    .addFields({ name: "Options", value: shuffled.map((o, i) => `**${i + 1})** ${o}`).join("\n") })
+    .setFooter({ text: "Reply with the option NUMBER (1-4) or the answer text. 30s. +250 for correct, +25 for trying" });
 
   const reply = await message.reply({ embeds: [embed] });
 
-  const filter = (m) => m.author.id === message.author.id && /^[a-dA-D]$/.test(m.content.trim());
+  // Accept: "1"-"4" (option number), the raw answer text, or A-D for legacy users.
+  const filter = (m) => {
+    if (m.author.id !== message.author.id) return false;
+    const c = m.content.trim().toLowerCase();
+    if (/^[1-4]$/.test(c)) return true;
+    if (/^[a-d]$/.test(c)) return true;
+    // accept raw text if it non-trivially matches a known answer or any option label
+    if (c.length >= 2) return true;
+    return false;
+  };
   const collector = message.channel.createMessageCollector({ filter, time: 30_000, max: 1 });
 
-  collector.on("collect", (m) => {
-    const choice = m.content.trim().toUpperCase();
-    const chosen = shuffled[choice.charCodeAt(0) - 65];
-    const correct = pick.a.some((ans) => chosen.toLowerCase().includes(ans));
+  collector.on("collect", async (m) => {
+    const raw = m.content.trim();
+    const lower = raw.toLowerCase();
+    let chosen = null;
+    let correct = false;
+
+    if (/^[1-4]$/.test(raw)) {
+      chosen = shuffled[parseInt(raw, 10) - 1];
+      correct = pick.a.some((ans) => chosen.toLowerCase().includes(ans));
+    } else if (/^[a-dA-D]$/.test(raw)) {
+      chosen = shuffled[raw.toUpperCase().charCodeAt(0) - 65];
+      correct = pick.a.some((ans) => chosen.toLowerCase().includes(ans));
+    } else {
+      // Raw text answer: compare against accepted answers and option labels
+      correct = pick.a.some((ans) => lower === ans || lower.includes(ans) || ans.includes(lower));
+      if (!correct) {
+        const matchedOpt = shuffled.find((o) => o.toLowerCase() === lower || o.toLowerCase().includes(lower) || lower.includes(o.toLowerCase()));
+        if (matchedOpt) {
+          chosen = matchedOpt;
+          correct = pick.a.some((ans) => matchedOpt.toLowerCase().includes(ans));
+        }
+      }
+    }
+
     updateUser(message.author.id, (u) => { u.triviaAnswered = (u.triviaAnswered || 0) + 1; });
     if (correct) {
       updateUser(message.author.id, (u) => { u.triviaScore = (u.triviaScore || 0) + 1; });
-      adjustBalance(message.author.id, 50);
-      m.reply({ embeds: [baseEmbed(COLORS.success).setTitle("✅ Correct!").setDescription(`**${chosen}** is right! +50 coins 🪙`)] });
+      adjustBalance(message.author.id, 250);
+      try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "trivia"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`trivia ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
+      m.reply({ embeds: [baseEmbed(COLORS.success).setTitle("\u{2705} Correct!").setDescription(`Right answer! +250 ${EMOJIS.coin}`)] });
     } else {
-      adjustBalance(message.author.id, 10);
+      adjustBalance(message.author.id, 25);
       const correctOpt = pick.opts.find((o) => pick.a.some((a) => o.toLowerCase().includes(a)));
-      m.reply({ embeds: [baseEmbed(COLORS.danger).setTitle("❌ Wrong!").setDescription(`The answer was **${correctOpt}**. +10 coins for trying 🪙`)] });
+      m.reply({ embeds: [baseEmbed(COLORS.danger).setTitle("\u{274C} Wrong!").setDescription(`The answer was **${correctOpt}**. +25 ${EMOJIS.coin} for trying.`)] });
     }
   });
 
   collector.on("end", (_, reason) => {
     if (reason === "time") {
-      reply.edit({ embeds: [embed.setFooter({ text: "⏰ Time's up!" })] });
+      reply.edit({ embeds: [embed.setFooter({ text: "\u{23F0} Time's up!" })] }).catch(() => {});
     }
   });
 }

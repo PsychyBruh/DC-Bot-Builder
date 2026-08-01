@@ -25,6 +25,7 @@ export async function execute(message) {
 
   adjustBalance(message.author.id, owed);
   updateUser(message.author.id, (d) => { d.lastPropertyCollect = now; return d; });
+  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "collect"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`collect ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
   const prop = PROPERTY_MAP[u.property];
   const hours = (since / 3600000).toFixed(2);
   const embed = baseEmbed(COLORS.success)

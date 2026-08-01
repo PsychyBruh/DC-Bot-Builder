@@ -18,7 +18,10 @@ export async function execute(message) {
   else u.streak.daily = 1;
   const streak = u.streak.daily;
   const bonus = Math.min((streak - 1) * 25, 500);
-  const base = 100 + bonus;
+  // Milestone bonuses: 7-day +500, 14-day +2000, 30-day +10000
+  const MILESTONES = { 7: 500, 14: 2000, 30: 10000 };
+  const milestone = MILESTONES[streak] || 0;
+  const base = 100 + bonus + milestone;
 
   const coinBoost = activeBooster(message.author.id, "coin");
   const total = coinBoost ? base * 2 : base;
@@ -27,12 +30,13 @@ export async function execute(message) {
     d.streak.dailyLast = today;
     return d;
   });
-  const { leveledUp, level } = addXp(message.author.id, 30);
+  const { leveledUp, level, levelBonus } = addXp(message.author.id, 30);
 
+  const milestoneLine = milestone ? `\n\u{1F3C6} **Milestone streak ${streak} days!** +${milestone.toLocaleString()} bonus` : "";
   const embed = baseEmbed(COLORS.gold)
     .setTitle(`${EMOJIS.gift} Daily Reward`)
-    .setDescription(`Claimed ${EMOJIS.coin} **${total.toLocaleString()}** ${coinBoost ? "(2x coin boost) " : ""}today!\n\n${EMOJIS.fire} Daily Streak: **${streak}** \u2014 +${bonus} bonus`)
-    .setFooter({ text: `Streak bonus caps at +500/day (max 600/day) | next reset tomorrow` });
-  if (leveledUp) embed.addFields({ name: "\u{1F389} Level up!", value: `You reached level **${level}**.` });
+    .setDescription(`Claimed ${EMOJIS.coin} **${total.toLocaleString()}** ${coinBoost ? "(2x coin boost) " : ""}today!\n\n${EMOJIS.fire} Daily Streak: **${streak}** \u2014 +${bonus} bonus${milestoneLine}`)
+    .setFooter({ text: `Streak bonus caps at +500/day | Milestones: 7d=+500, 14d=+2000, 30d=+10000 | next reset tomorrow` });
+  if (leveledUp) embed.addFields({ name: "\u{1F389} Level up!", value: `You reached level **${level}** and earned a ${EMOJIS.coin} **${(levelBonus || 0).toLocaleString()}** level-up bonus!` });
   await message.reply({ embeds: [embed] });
 }

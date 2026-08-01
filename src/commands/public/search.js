@@ -27,6 +27,7 @@ export async function execute(message) {
   if (!(await applyCooldown(message, "search", "pity"))) return;
   const loc = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)];
   const r = Math.random();
+  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "search"); if (c) { adjustBalance(message.author.id, c.reward); await notifyQuestComplete(message, c); } } catch {}
 
   if (r < 0.40) {
     // 40%: 20-80c
@@ -63,4 +64,8 @@ export async function execute(message) {
 
 async function reply(message, color, desc) {
   await message.reply({ embeds: [baseEmbed(color).setTitle(`${"\u{1F50D}"} Search`).setDescription(desc).setFooter({ text: "Cooldown: 1 min | Try !search again later" })] });
+}
+
+export async function notifyQuestComplete(message, q) {
+  try { await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`${q.type} ${q.target}x\` done! ${EMOJIS.coin} **${q.reward.toLocaleString()}** reward credited.`)] }); } catch {}
 }

@@ -13,8 +13,8 @@ export async function handleXp(message) {
   const result = addXp(message.author.id, xpGain);
   if (result.leveledUp) {
     const embed = baseEmbed(COLORS.purple)
-      .setTitle("🎉 Level Up!")
-      .setDescription(`<@${message.author.id}> reached level **${result.level}**!`)
+      .setTitle("\u{1F389} Level Up!")
+      .setDescription(`<@${message.author.id}> reached level **${result.level}**!\n\u{1F4B0} Level-up bonus: \u{1FA99} **${(result.levelBonus || 0).toLocaleString()}** coins`)
       .setFooter({ text: `Total XP: ${result.xp}` });
     try {
       await message.channel.send({ embeds: [embed] });

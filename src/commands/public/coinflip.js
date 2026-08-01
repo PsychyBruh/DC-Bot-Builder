@@ -24,6 +24,7 @@ export async function execute(message, args) {
   let resultText = "";
   if (bet > 0) {
     adjustBalance(message.author.id, -bet);
+    try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "gamble"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`gamble ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
     const won = Math.random() < 0.45;
     if (won) {
       adjustBalance(message.author.id, bet * 2);

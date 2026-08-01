@@ -34,6 +34,7 @@ export async function execute(message) {
     line = `${EMOJIS.cross} Nobody gave you anything. Try \`!work\`, \`!daily\`, or \`!search\` instead.`;
   }
   if (earned) adjustBalance(message.author.id, earned);
+  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "beg"); if (c) adjustBalance(message.author.id, c.reward); } catch {}
   const embed = baseEmbed(COLORS.warning).setTitle(`${"\u{1FAE0}"} Beggar bowl`).setDescription(line).setFooter({ text: "Try !work, !daily, or !search for better income" });
   await message.reply({ embeds: [embed] });
 }
