@@ -36,16 +36,24 @@ export async function execute(message, args) {
     .setFooter({ text: `Pot: ${totalCost} coins` });
   const m = await message.reply({ embeds: [embed] });
   await m.react("🎉");
-  setTimeout(async () => {
+
+  const entries = new Set();
+  const filter = (reaction, user) => {
+    if (reaction.emoji.name !== "🎉") return false;
+    if (user.bot) return false;
+    entries.add(user.id);
+    return true;
+  };
+  const collector = m.createReactionCollector({ filter, time: dur });
+  collector.on("end", async () => {
     try {
-      const fetched = await m.fetch();
-      const entries = [...fetched.reactions.cache.get("🎉")?.users.cache.keys() || []].filter((id) => id !== message.client.user.id);
-      if (!entries.length) {
+      const ids = [...entries];
+      if (!ids.length) {
         const e = baseEmbed(COLORS.warning).setTitle("🎉 Giveaway Ended").setDescription("No entries.");
         return m.edit({ embeds: [e] });
       }
       const winnersList = [];
-      const pool = [...entries];
+      const pool = [...ids];
       for (let i = 0; i < winners && pool.length; i++) {
         const idx = Math.floor(Math.random() * pool.length);
         winnersList.push(pool[idx]);
@@ -57,5 +65,5 @@ export async function execute(message, args) {
         .setDescription(`Winners: ${winnersList.map((id) => `<@${id}>`).join(", ")}\nEach won **${amount} coins**!`);
       await m.edit({ embeds: [e] });
     } catch {}
-  }, dur);
+  });
 }
