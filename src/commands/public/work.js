@@ -1,5 +1,5 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
-import { JOBS, PROPERTY_MAP, activeBooster } from "../../storage/economy.js";
+import { JOBS, PROPERTY_MAP, activeBooster, computePropertyAccrual } from "../../storage/economy.js";
 import { getUser, adjustBalance, updateUser, addXp } from "../../storage/users.js";
 
 export const name = "work";
@@ -26,18 +26,14 @@ export async function execute(message) {
     return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription(`${EMOJIS.clock} You're on shift cooldown. Wait **${fmtCd(wait)}**.`)] });
   }
 
-  // Compute earnings: base + variance + level bonus + property income
+  // Compute earnings: base + variance + level bonus (property income is separate—claimed via !collect)
   const variance = Math.floor(Math.random() * 6) - 3; // -3..+3
-  let earned = job.base + variance + (u.level || 0) * 2;
-  let propertyIncome = 0;
-  if (u.property && PROPERTY_MAP[u.property]) propertyIncome = PROPERTY_MAP[u.property].income;
+  const earned = job.base + variance + (u.level || 0) * 2;
 
   // Coin booster 2x
   const coinBoost = activeBooster(message.author.id, "coin");
-  let boostMult = 1;
-  if (coinBoost) boostMult *= 2;
-
-  const total = Math.max(0, earned + propertyIncome) * boostMult;
+  const boostMult = coinBoost ? 2 : 1;
+  const total = Math.max(0, earned) * boostMult;
   adjustBalance(message.author.id, total);
   updateUser(message.author.id, (d) => {
     d.lastWork = now;
@@ -54,7 +50,12 @@ export async function execute(message) {
     `${job.emoji} **${message.author.username}** worked as a **${job.name}**`,
     `${EMOJIS.coin} Earned **${total.toLocaleString()}** coins${coinBoost ? " (2x coin boost)" : ""}${variance > 0 ? " (good day!)" : variance < 0 ? " (slow day)" : ""}`,
   ];
-  if (propertyIncome) lines.push(`${PROPERTY_MAP[u.property].emoji} Property income: ${EMOJIS.coin} **${propertyIncome.toLocaleString()}**`);
+  // Hint: passive income accruing (claimed separately)
+  if (u.property && PROPERTY_MAP[u.property]) {
+    const { owed } = computePropertyAccrual(u);
+    if (owed > 0) lines.push(`${PROPERTY_MAP[u.property].emoji} Property accrued: ${EMOJIS.coin} **${owed.toLocaleString()}** — claim with \`!collect\``);
+    else lines.push(`${PROPERTY_MAP[u.property].emoji} Property: ${PROPERTY_MAP[u.property].earnRate}/h passive (use \`!collect\`)`);
+  }
   lines.push(`${EMOJIS.star} +${xpAmt} XP${xpBoost ? " (2x XP boost)" : ""}`);
   const embed = baseEmbed(COLORS.gold)
     .setTitle(`${job.emoji} Shift done`)

@@ -27,7 +27,7 @@ export async function execute(message, args) {
   updateUser(message.author.id, (d) => { d.property = prop.id; return d; });
   const embed = baseEmbed(COLORS.success)
     .setTitle(`${prop.emoji} Property Bought`)
-    .setDescription(`You now own **${prop.name}**\n\nPassive income: ${EMOJIS.coin} **${prop.income}**/work shift`)
-    .setFooter({ text: "Sell it back for half price: !sell-property" });
+    .setDescription(`You now own **${prop.name}**\n\nPassive income: ${EMOJIS.coin} **${prop.earnRate}/hour** (accrues over time; claim with \`!collect\`)`)
+    .setFooter({ text: "Sell it back for half price: !sell-property | Accrual caps at 12h" });
   await message.reply({ embeds: [embed] });
 }

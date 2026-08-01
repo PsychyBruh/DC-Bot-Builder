@@ -50,6 +50,7 @@ function ensureDefaults(data) {
   if (data.bountyOnMe === undefined) data.bountyOnMe = 0;
   if (data.karma === undefined) data.karma = 0;
   if (data.property === undefined) data.property = null;
+  if (data.lastPropertyCollect === undefined) data.lastPropertyCollect = null;
   if (data.jobsWorked === undefined) data.jobsWorked = 0;
   if (data.giveUsed === undefined) data.giveUsed = {};
   return data;

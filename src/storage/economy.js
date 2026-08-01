@@ -45,15 +45,31 @@ export const ITEMS = [
 export const ITEM_MAP = Object.fromEntries(ITEMS.map((i) => [i.id, i]));
 
 // ============ PROPERTIES ============
+// Property income is a TIME-BASED accrual (per hour), not per-shift.
+// Owners accumulate while online or offline; claim with !collect.
+// earnRate is coins-per-hour.
 export const PROPERTIES = [
-  { id: "shack",    name: "Shack",          price: 2000,   income: 30,   emoji: "\u{1F3D8}\uFE0F", desc: "Small passive income each work" },
-  { id: "house",    name: "Cosy House",     price: 8000,   income: 100,  emoji: "\u{1F3E0}", desc: "Decent passive income" },
-  { id: "villa",    name: "Villa",          price: 25000,  income: 400,  emoji: "\u{1F3E1}", desc: "Great passive income" },
-  { id: "mansion",  name: "Mansion",        price: 80000,  income: 1500, emoji: "\u{1F3E2}", desc: "Huge passive income" },
-  { id: "castle",   name: "Castle",         price: 250000, income: 5000, emoji: "\u{1F3F0}", desc: "Royalty-grade income" },
+  { id: "shack",    name: "Shack",          price: 2000,   earnRate: 30,   emoji: "\u{1F3D8}\uFE0F", desc: "Tiny passive trickle" },
+  { id: "house",    name: "Cosy House",     price: 8000,   earnRate: 100,  emoji: "\u{1F3E0}", desc: "Decent passive income" },
+  { id: "villa",    name: "Villa",          price: 25000,  earnRate: 400,  emoji: "\u{1F3E1}", desc: "Great passive income" },
+  { id: "mansion",  name: "Mansion",        price: 80000,  earnRate: 1500, emoji: "\u{1F3E2}", desc: "Huge passive income" },
+  { id: "castle",   name: "Castle",         price: 250000, earnRate: 5000, emoji: "\u{1F3F0}", desc: "Royalty-grade income" },
 ];
 
 export const PROPERTY_MAP = Object.fromEntries(PROPERTIES.map((p) => [p.id, p]));
+
+// Cap how much back-pay can accrue (12h). Beyond this, you must claim to keep earning.
+export const PROPERTY_ACCRUAL_CAP_MS = 12 * 60 * 60 * 1000;
+
+export function computePropertyAccrual(user) {
+  if (!user.property || !PROPERTY_MAP[user.property]) return { owed: 0, since: 0 };
+  const prop = PROPERTY_MAP[user.property];
+  const now = Date.now();
+  const last = user.lastPropertyCollect || now;
+  const elapsed = Math.min(now - last, PROPERTY_ACCRUAL_CAP_MS);
+  const owed = Math.floor((prop.earnRate / 3600000) * elapsed);
+  return { owed, since: elapsed };
+}
 
 // ============ HELPERS ============
 export function addItem(userId, itemId, qty = 1) {

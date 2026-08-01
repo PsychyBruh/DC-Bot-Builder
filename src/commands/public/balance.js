@@ -1,6 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { getUser } from "../../storage/users.js";
-import { JOBS, PROPERTY_MAP } from "../../storage/economy.js";
+import { JOBS, PROPERTY_MAP, computePropertyAccrual } from "../../storage/economy.js";
 import { getPrice } from "../../storage/market.js";
 
 export const name = "balance";
@@ -20,7 +20,10 @@ export async function execute(message) {
   const lines = [`${EMOJIS.coin} **Wallet:** ${(u.balance || 0).toLocaleString()} coins`];
   if (job) lines.push(`${job.emoji} **Job:** ${job.name} (${EMOJIS.coin} ${job.base}/shift)`);
   if (shares > 0) lines.push(`${EMOJIS.chart} **Shares:** ${shares.toFixed(4)} NOVA \u2014 value ${EMOJIS.coin} ${shareValue.toLocaleString()}`);
-  if (prop) lines.push(`${prop.emoji} **Property:** ${prop.name} (${EMOJIS.coin} ${prop.income}/shift)`);
+  if (prop) {
+    const { owed } = computePropertyAccrual(u);
+    lines.push(`${prop.emoji} **Property:** ${prop.name} (${EMOJIS.coin} ${prop.earnRate}/h)${owed > 0 ? ` \u2014 ${EMOJIS.coin} ${owed.toLocaleString()} unclaimed (\`!collect\`)` : ""}`);
+  }
   if ((u.karma || 0) > 0) lines.push(`${EMOJIS.heart} **Karma:** ${u.karma}`);
   if (u.jailed && u.jailed.until > Date.now()) lines.push(`${"\u{1F6AB}"} **Jailed** until ${new Date(u.jailed.until).toLocaleTimeString()}`);
 
