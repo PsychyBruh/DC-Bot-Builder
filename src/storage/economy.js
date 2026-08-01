@@ -2,14 +2,14 @@ import { getUser, updateUser } from "./users.js";
 
 // ============ JOBS ============
 export const JOBS = [
-  { id: "beggar",       name: "Beggar",         emoji: "\u{1F917}", base: 30,  cooldown: 60 * 1000,        desc: "Low pay, very fast cooldown" },
-  { id: "farmer",       name: "Farmer",         emoji: "\u{1F33E}", base: 80,  cooldown: 5 * 60 * 1000,    desc: "Steady pay, fast" },
-  { id: "miner",        name: "Miner",          emoji: "\u{26CF}\uFE0F", base: 150, cooldown: 10 * 60 * 1000, desc: "Good pay, medium" },
-  { id: "fisher",       name: "Fisherman",      emoji: "\u{1F3A3}", base: 220, cooldown: 20 * 60 * 1000,   desc: "Better pay, slower" },
-  { id: "blacksmith",   name: "Blacksmith",     emoji: "\u{1F528}", base: 350, cooldown: 30 * 60 * 1000,   desc: "High pay, slow" },
-  { id: "merchant",     name: "Merchant",       emoji: "\u{1F4BC}", base: 500, cooldown: 60 * 60 * 1000,   desc: "Excellent pay, hourly" },
-  { id: "knight",       name: "Knight",         emoji: "\u{1F396}\uFE0F", base: 800,  cooldown: 90 * 60 * 1000, desc: "Elite pay, very slow" },
-  { id: "wizard",       name: "Wizard",         emoji: "\u{1F9D9}", base: 1200, cooldown: 120 * 60 * 1000, desc: "Top pay, slowest" },
+  { id: "beggar",       name: "Beggar",         emoji: "\u{1F917}", base: 35,   cooldown: 60 * 1000,        desc: "Low pay, very fast cooldown" },
+  { id: "farmer",       name: "Farmer",         emoji: "\u{1F33E}", base: 95,   cooldown: 5 * 60 * 1000,    desc: "Steady pay, fast" },
+  { id: "miner",        name: "Miner",          emoji: "\u{26CF}\uFE0F", base: 170,  cooldown: 10 * 60 * 1000, desc: "Good pay, medium" },
+  { id: "fisher",       name: "Fisherman",      emoji: "\u{1F3A3}", base: 255,  cooldown: 20 * 60 * 1000,   desc: "Better pay, slower" },
+  { id: "blacksmith",   name: "Blacksmith",     emoji: "\u{1F528}", base: 395,  cooldown: 30 * 60 * 1000,   desc: "High pay, slow" },
+  { id: "merchant",     name: "Merchant",       emoji: "\u{1F4BC}", base: 565,  cooldown: 60 * 60 * 1000,   desc: "Excellent pay, hourly" },
+  { id: "knight",       name: "Knight",         emoji: "\u{1F396}\uFE0F", base: 905,  cooldown: 90 * 60 * 1000, desc: "Elite pay, very slow" },
+  { id: "wizard",       name: "Wizard",         emoji: "\u{1F9D9}", base: 1380, cooldown: 120 * 60 * 1000, desc: "Top pay, slowest" },
 ];
 
 // Switching cooldowns scale with job tier so you can't hop between high-tier jobs to dodge work cooldowns.

@@ -24,7 +24,7 @@ export async function execute(message, args) {
   const bal = u.balance || 0;
   if (bal < prop.price) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You need ${EMOJIS.coin} **${prop.price.toLocaleString()}** (you have ${bal.toLocaleString()}).`)] });
   adjustBalance(message.author.id, -prop.price);
-  updateUser(message.author.id, (d) => { d.property = prop.id; return d; });
+  updateUser(message.author.id, (d) => { d.property = prop.id; d.lastPropertyCollect = Date.now(); return d; });
   const embed = baseEmbed(COLORS.success)
     .setTitle(`${prop.emoji} Property Bought`)
     .setDescription(`You now own **${prop.name}**\n\nPassive income: ${EMOJIS.coin} **${prop.earnRate}/hour** (accrues over time; claim with \`!collect\`)`)

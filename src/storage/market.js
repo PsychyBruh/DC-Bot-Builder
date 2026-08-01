@@ -33,19 +33,29 @@ function save() {
 load();
 
 const TICK_MS = 60 * 60 * 1000; // price ticks hourly
-const VOLATILITY = 0.08; // +/- 8% per tick
+const VOLATILITY = 0.15; // +/- 15% per tick (was 8% — too tame, investing barely moved)
+const MEAN_REVERSION = 0.005; // weak pull back toward 100 (was 0.02 — strangled price)
+const MIN_PRICE = 5;
+const MAX_PRICE = 500;
 
 export function tickMarket() {
   const now = Date.now();
   if (now - state.lastUpdate < TICK_MS) return state;
 
-  let drift = (Math.random() - 0.5) * 2 * VOLATILITY;
-  // gentle mean-reversion toward 100
-  drift += (100 - state.price) * 0.02;
-  state.price = Math.max(10, Math.round(state.price * (1 + drift) * 100) / 100);
+  // Catch up: apply one tick per elapsed hour of downtime, so price reflects
+  // the right amount of drift after a restart. Cap at 24 ticks — extra downtime
+  // is collapsed to "now" to avoid re-ticking on every call until caught up.
+  const elapsedTicks = Math.min(24, Math.floor((now - state.lastUpdate) / TICK_MS));
+  for (let i = 0; i < elapsedTicks; i++) {
+    let drift = (Math.random() - 0.5) * 2 * VOLATILITY;
+    drift += (100 - state.price) * MEAN_REVERSION;
+    state.price = Math.max(MIN_PRICE, Math.min(MAX_PRICE, Math.round(state.price * (1 + drift) * 100) / 100));
+    state.history.push({ price: state.price, at: state.lastUpdate + (i + 1) * TICK_MS });
+  }
+  if (state.history.length > 48) state.history = state.history.slice(-48);
+  // Snap lastUpdate to now: capped catch-ups mean we deliberately lose precision
+  // for any downtime beyond 24h, accepting an immediate "present" anchor.
   state.lastUpdate = now;
-  state.history.push({ price: state.price, at: now });
-  if (state.history.length > 48) state.history.shift();
   save();
   return state;
 }

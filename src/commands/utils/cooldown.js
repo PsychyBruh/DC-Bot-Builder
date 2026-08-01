@@ -11,6 +11,7 @@ export const COOLDOWNS = {
   fun: 2_000,
   rep: 86_400_000,
   crime: 20_000,
+  pity: 60_000, // 1 min — broke-waiting-for-work commands (!beg, !search)
 };
 
 export async function applyCooldown(message, command, tier = "fun") {

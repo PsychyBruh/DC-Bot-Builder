@@ -15,7 +15,11 @@ export async function execute(message) {
   const prop = PROPERTY_MAP[u.property];
   if (!prop) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Your property is invalid. Contact admin.`)] });
   const refund = Math.floor(prop.price * 0.5);
+  // Forbid selling with accrued-but-unclaimed income: pay it out first.
+  const { computePropertyAccrual } = await import("../../storage/economy.js");
+  const { owed } = computePropertyAccrual(u);
+  if (owed > 0) adjustBalance(message.author.id, owed);
   adjustBalance(message.author.id, refund);
-  updateUser(message.author.id, (d) => { d.property = null; return d; });
-  await message.reply({ embeds: [baseEmbed(COLORS.warning).setTitle(`${prop.emoji} Sold Property`).setDescription(`Sold **${prop.name}** back for ${EMOJIS.coin} **${refund.toLocaleString()}** (50% of price).`)] });
+  updateUser(message.author.id, (d) => { d.property = null; d.lastPropertyCollect = null; return d; });
+  await message.reply({ embeds: [baseEmbed(COLORS.warning).setTitle(`${prop.emoji} Sold Property`).setDescription(`Sold **${prop.name}** back for ${EMOJIS.coin} **${refund.toLocaleString()}** (50% of price).${owed > 0 ? `\n\nAlso paid out ${EMOJIS.coin} **${owed.toLocaleString()}** of uncollected income.` : ""}`)] });
 }

@@ -50,11 +50,14 @@ export async function execute(message) {
     `${job.emoji} **${message.author.username}** worked as a **${job.name}**`,
     `${EMOJIS.coin} Earned **${total.toLocaleString()}** coins${coinBoost ? " (2x coin boost)" : ""}${variance > 0 ? " (good day!)" : variance < 0 ? " (slow day)" : ""}`,
   ];
-  // Hint: passive income accruing (claimed separately)
+  // Always show property status so users remember to !collect
   if (u.property && PROPERTY_MAP[u.property]) {
+    const prop = PROPERTY_MAP[u.property];
     const { owed } = computePropertyAccrual(u);
-    if (owed > 0) lines.push(`${PROPERTY_MAP[u.property].emoji} Property accrued: ${EMOJIS.coin} **${owed.toLocaleString()}** — claim with \`!collect\``);
-    else lines.push(`${PROPERTY_MAP[u.property].emoji} Property: ${PROPERTY_MAP[u.property].earnRate}/h passive (use \`!collect\`)`);
+    const line = owed > 0
+      ? `${prop.emoji} Property accrued: ${EMOJIS.coin} **${owed.toLocaleString()}** \u2014 claim with \`!collect\``
+      : `${prop.emoji} Property: ${prop.earnRate}/h passive (accruing \u2014 use \`!collect\`)`;
+    lines.push(line);
   }
   lines.push(`${EMOJIS.star} +${xpAmt} XP${xpBoost ? " (2x XP boost)" : ""}`);
   const embed = baseEmbed(COLORS.gold)

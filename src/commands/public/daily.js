@@ -18,7 +18,7 @@ export async function execute(message) {
   else u.streak.daily = 1;
   const streak = u.streak.daily;
   const bonus = Math.min((streak - 1) * 25, 500);
-  const base = 50 + bonus;
+  const base = 100 + bonus;
 
   const coinBoost = activeBooster(message.author.id, "coin");
   const total = coinBoost ? base * 2 : base;
@@ -32,7 +32,7 @@ export async function execute(message) {
   const embed = baseEmbed(COLORS.gold)
     .setTitle(`${EMOJIS.gift} Daily Reward`)
     .setDescription(`Claimed ${EMOJIS.coin} **${total.toLocaleString()}** ${coinBoost ? "(2x coin boost) " : ""}today!\n\n${EMOJIS.fire} Daily Streak: **${streak}** \u2014 +${bonus} bonus`)
-    .setFooter({ text: `Streak bonus caps at +500/day | next reset tomorrow` });
+    .setFooter({ text: `Streak bonus caps at +500/day (max 600/day) | next reset tomorrow` });
   if (leveledUp) embed.addFields({ name: "\u{1F389} Level up!", value: `You reached level **${level}**.` });
   await message.reply({ embeds: [embed] });
 }
