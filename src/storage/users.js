@@ -58,6 +58,7 @@ function ensureDefaults(data) {
   if (data.questDate === undefined) data.questDate = null;
   if (data.fishCaught === undefined) data.fishCaught = 0;
   if (data.fishBest === undefined) data.fishBest = null;
+  if (data.guildsSeen === undefined) data.guildsSeen = [];
   return data;
 }
 
@@ -188,6 +189,27 @@ export function getTopUsers(sortKey, limit = 10) {
   }
   arr.sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
   return arr.slice(0, limit);
+}
+
+// Record that a user was seen in a guild (cheap: only saves on first sighting).
+export function recordGuildSeen(userId, guildId) {
+  const data = getUser(userId);
+  const list = data.guildsSeen || (data.guildsSeen = []);
+  if (list.includes(guildId)) return;
+  list.push(guildId);
+  save();
+}
+
+// Return users who have been seen in the given guild. Server leaderboards should
+// prefer this over guild member fetches so they never show a false "no data".
+export function getUsersByGuild(guildId) {
+  const arr = [];
+  for (const [uid, data] of users) {
+    if (data.guildsSeen && data.guildsSeen.includes(guildId)) {
+      arr.push({ id: uid, ...data });
+    }
+  }
+  return arr;
 }
 
 // Return raw user records (id + data) for server-scoped leaderboards.

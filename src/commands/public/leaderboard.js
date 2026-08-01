@@ -1,5 +1,5 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
-import { getAllUsers } from "../../storage/users.js";
+import { getAllUsers, getUsersByGuild } from "../../storage/users.js";
 import { PROPERTY_MAP } from "../../storage/economy.js";
 import { getPrice } from "../../storage/market.js";
 
@@ -18,19 +18,21 @@ async function netWorthFor(user) {
 }
 
 export async function execute(message) {
-  const all = getAllUsers();
-  // Filter to users that are members of this guild
   const guild = message.guild;
-  let memberIds;
-  try {
-    await guild.members.fetch();
-    memberIds = new Set(guild.members.cache.keys());
-  } catch {
-    memberIds = new Set();
-  }
-  const inGuild = all.filter((u) => memberIds.has(u.id));
+
+  // Primary source: users seen in this guild (fresh per use, always accurate).
+  let inGuild = getUsersByGuild(guild.id);
+
+  // Fallback: include economy users currently in the guild member cache
+  // (covers users recorded before guild tracking existed).
   if (inGuild.length === 0) {
-    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("No data for this server yet")] });
+    try { await guild.members.fetch(); } catch {}
+    const memberIds = new Set(guild.members.cache.keys());
+    inGuild = getAllUsers().filter((u) => memberIds.has(u.id));
+  }
+
+  if (inGuild.length === 0) {
+    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("No data for this server yet \u2014 start earning with `!work`, `!daily`, or `!search`!")] });
   }
   const ranked = await Promise.all(inGuild.map(async (u) => ({ id: u.id, nw: await netWorthFor(u) })));
   ranked.sort((a, b) => b.nw - a.nw);
@@ -48,6 +50,6 @@ export async function execute(message) {
   const embed = baseEmbed(COLORS.gold)
     .setTitle(`${"\u{1F3C6}"} Server Leaderboard \u2014 Net Worth`)
     .setDescription(lines.join("\n"))
-    .setFooter({ text: `Top 10 in ${guild.name} | Net worth = wallet + shares + property resale` });
+    .setFooter({ text: `Top 10 in ${guild.name} | Live values refreshed on every use | Net worth = wallet + shares + property resale` });
   await message.reply({ embeds: [embed] });
 }

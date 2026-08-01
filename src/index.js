@@ -129,6 +129,14 @@ client.on("messageCreate", async (message) => {
   const { handleXp } = await import("./commands/utils/xp.js");
   try { await handleXp(message); } catch {}
 
+  // Track which guild a user is active in (powers fresh server leaderboards).
+  if (message.guild) {
+    try {
+      const { recordGuildSeen } = await import("./storage/users.js");
+      recordGuildSeen(message.author.id, message.guild.id);
+    } catch {}
+  }
+
   // Record channel activity for the drop-event picker
   try {
     const { recordActivity } = await import("./commands/utils/dropEvent.js");

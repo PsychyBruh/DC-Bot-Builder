@@ -38,6 +38,6 @@ export async function execute(message) {
   const embed = baseEmbed(COLORS.purple)
     .setTitle(`${"\u{1F30D}"} Global Leaderboard \u2014 Net Worth`)
     .setDescription(lines.join("\n"))
-    .setFooter({ text: "Top 10 across all servers | Net worth = wallet + shares + property resale" });
+    .setFooter({ text: "Top 10 across all servers | Live values refreshed on every use | Net worth = wallet + shares + property resale" });
   await message.reply({ embeds: [embed] });
 }
