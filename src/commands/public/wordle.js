@@ -1617,7 +1617,7 @@ export async function execute(message) {
   games.set(`${message.channelId}:${message.author.id}`, game);
   const embed = baseEmbed(COLORS.cyan)
     .setTitle("\u{1F7E9}\u{1F7E8}\u{2B1B} Wordle")
-    .setDescription(`I've picked a **5-letter word**. Guess it in 6 tries!\n\nType a word to guess.\n\n${renderGuesses(game)}`)
+    .setDescription(`I've picked a **5-letter word**. Guess it in 6 tries!\n\nType a word to guess.\n\n${renderBoard(game)}`)
     .setFooter({ text: "Tries left: 6" });
   await message.reply({ embeds: [embed] });
 }
@@ -1642,6 +1642,46 @@ function renderGuesses(game) {
   return lines.join("\n");
 }
 
+const KEYBOARD_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+
+function letterBestStatus(letter, game) {
+  let best = null;
+  for (const g of game.guesses) {
+    const chars = [...g.word];
+    const target = [...game.word];
+    const used = Array(5).fill(false);
+    const posStatus = Array(5).fill(null);
+    for (let i = 0; i < 5; i++) {
+      if (chars[i] === target[i]) { posStatus[i] = "green"; used[i] = true; }
+    }
+    for (let i = 0; i < 5; i++) {
+      if (posStatus[i] === "green") continue;
+      const idx = target.findIndex((t, j) => t === chars[i] && !used[j]);
+      if (idx !== -1) { posStatus[i] = "yellow"; used[idx] = true; }
+      else posStatus[i] = "absent";
+    }
+    for (let i = 0; i < 5; i++) {
+      if (chars[i] !== letter) continue;
+      const s = posStatus[i];
+      if (s === "green") return "green";
+      if (s === "yellow" && best !== "green") best = "yellow";
+      if (s === "absent" && !best) best = "absent";
+    }
+  }
+  return best || "unused";
+}
+
+function renderKeyboard(game) {
+  const TILE = { green: "\u{1F7E9}", yellow: "\u{1F7E8}", absent: "\u{2B1B}", unused: "\u{2B1C}" };
+  return KEYBOARD_ROWS.map((row) =>
+    [...row].map((letter) => `${TILE[letterBestStatus(letter, game)]}${letter}`).join(" ")
+  ).join("\n");
+}
+
+function renderBoard(game) {
+  return `${renderGuesses(game)}\n\n${renderKeyboard(game)}`;
+}
+
 export async function handleWordleGuess(message, word) {
   const game = games.get(`${message.channelId}:${message.author.id}`);
   if (!game) return false;
@@ -1663,7 +1703,7 @@ export async function handleWordleGuess(message, word) {
     adjustBalance(message.author.id, payout);
     const embed = baseEmbed(COLORS.success)
       .setTitle("\u{1F389} You got it!")
-      .setDescription(`${renderGuesses(game)}\n\nThe word was **${game.word}**. Solved in ${game.guesses.length}/6!\n\n${EMOJIS.coin} You earned **${payout.toLocaleString()}** coins!`);
+      .setDescription(`${renderBoard(game)}\n\nThe word was **${game.word}**. Solved in ${game.guesses.length}/6!\n\n${EMOJIS.coin} You earned **${payout.toLocaleString()}** coins!`);
     games.delete(`${message.channelId}:${message.author.id}`);
     await message.reply({ embeds: [embed] });
     return true;
@@ -1671,14 +1711,14 @@ export async function handleWordleGuess(message, word) {
   if (triesLeft <= 0) {
     const embed = baseEmbed(COLORS.danger)
       .setTitle("\u{1F622} Out of tries!")
-      .setDescription(`${renderGuesses(game)}\n\nThe word was **${game.word}**.`);
+      .setDescription(`${renderBoard(game)}\n\nThe word was **${game.word}**.`);
     games.delete(`${message.channelId}:${message.author.id}`);
     await message.reply({ embeds: [embed] });
     return true;
   }
   const embed = baseEmbed(COLORS.cyan)
     .setTitle("\u{1F7E9}\u{1F7E8}\u{2B1B} Wordle")
-    .setDescription(`${renderGuesses(game)}\n\nTries left: **${triesLeft}**`)
+    .setDescription(`${renderBoard(game)}\n\nTries left: **${triesLeft}**`)
     .setFooter({ text: "\u{1F7E9} = correct position, \u{1F7E8} = in word, \u{2B1B} = not in word" });
   await message.reply({ embeds: [embed] });
   return true;
