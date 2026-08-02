@@ -98,9 +98,9 @@ client.once("clientReady", async () => {
   const { startPrivateRoomCleaner } = await import("./commands/utils/privateRoomCleaner.js");
   startPrivateRoomCleaner(client);
 
-  // Random coin-drop events in active channels (every 30-60 min)
-  const { startDropEvent } = await import("./commands/utils/dropEvent.js");
-  startDropEvent(client);
+  // Random coin-drop events in active channels (every 30-60 min) — DISABLED
+  // const { startDropEvent } = await import("./commands/utils/dropEvent.js");
+  // startDropEvent(client);
 
   // Economy housekeeping: market price tick + lottery auto-draw
   const { tickMarket } = await import("./storage/market.js");
