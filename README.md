@@ -48,7 +48,8 @@ Copy `.env` and fill in your values:
 
 ```
 DISCORD_TOKEN=your_discord_bot_token_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+AI_MODEL=poolside/laguna-s-2.1:free
 CLIENT_ID=your_discord_application_client_id_here
 ```
 

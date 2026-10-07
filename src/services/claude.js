@@ -1,8 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+import { createMessage } from "./ai.js";
 
 const SYSTEM_PROMPT_BASE = `You are Project Nova, an AI Discord server architect working via natural chat.
 
@@ -25,21 +21,12 @@ export async function askClaude(messages, serverContextJson, tools, memoriesStr,
     .replace("{MEMORIES_STRING}", memoriesStr ? `\n${memoriesStr}` : "")
     .replace("{MOOD}", moodStr ? `\n${moodStr}` : "");
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    cache_control: { type: "ephemeral" },
+  const response = await createMessage({
     system: systemPrompt,
-    messages: messages.map((m) => ({
-      role: m.role,
-      content: m.content,
-    })),
-    tools: tools,
+    messages,
+    tools,
+    max_tokens: 1024,
   });
-
-  if (response.usage?.cache_read_input_tokens || response.usage?.cache_creation_input_tokens) {
-    console.log(`Cache: read=${response.usage.cache_read_input_tokens} created=${response.usage.cache_creation_input_tokens} input=${response.usage.input_tokens}`);
-  }
 
   return response;
 }
