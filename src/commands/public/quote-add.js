@@ -8,6 +8,7 @@ export const usage = "!quote-add <text> | <author>";
 export const category = "fun";
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "quote-add", "social"))) return;
   const text = args.join(" ");
   if (!text) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Format: `!quote-add <quote> | <author>`")] });
@@ -19,6 +20,8 @@ export async function execute(message, args) {
     quoteText = text.slice(0, sep).trim();
     author = text.slice(sep + 1).trim() || "Anonymous";
   }
+  if (!quoteText) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ The quote can't be empty.")] });
+  if (quoteText.length > 300 || author.length > 60) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Quotes are limited to 300 characters and authors to 60.")] });
   addQuote(quoteText, author);
   const embed = baseEmbed(COLORS.success)
     .setTitle("✅ Quote Added")

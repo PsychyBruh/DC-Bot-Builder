@@ -8,7 +8,6 @@ export const category = "social";
 
 export async function execute(message) {
   const result = checkInStreak(message.author.id);
-  const data = getUser(message.author.id);
   if (!result.ok) {
     return message.reply({
       embeds: [baseEmbed(COLORS.warning)

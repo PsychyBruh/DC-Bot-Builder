@@ -10,6 +10,7 @@ export async function execute(message, args) {
   if (!(await applyCooldown(message, "highfive", "fun"))) return;
   const target = message.mentions.users.first();
   if (!target) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Mention someone!")] });
+  if (target.id === message.author.id) return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("❌ You can't high-five yourself")] });
   const embed = baseEmbed(COLORS.gold)
     .setTitle("✋ High Five!")
     .setDescription(`**${message.author.username}** high-fives **${target.username}**\n\n>>> *slap!*`)

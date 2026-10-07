@@ -10,6 +10,7 @@ export async function execute(message, args) {
   if (!(await applyCooldown(message, "wave", "fun"))) return;
   const target = message.mentions.users.first();
   if (!target) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Mention someone!")] });
+  if (target.id === message.author.id) return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("❌ Wave at someone else")] });
   const embed = baseEmbed(COLORS.info)
     .setTitle("👋 Wave!")
     .setDescription(`**${message.author.username}** waves at **${target.username}**\n\n>>> *waves*`)

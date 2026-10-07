@@ -24,5 +24,6 @@ export async function execute(message) {
   const embed = baseEmbed(COLORS.danger)
     .setTitle("🚫 Never Have I Ever")
     .setDescription(`>>> ${QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)]}\n\nReact with 🙋 if you HAVE done it`);
-  await message.reply({ embeds: [embed] });
+  const sent = await message.reply({ embeds: [embed] });
+  await sent.react("🙋").catch(() => {});
 }

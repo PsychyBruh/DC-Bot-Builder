@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "leet";
@@ -11,6 +12,7 @@ const LEET_MAP = {
 };
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "leet", "fun"))) return;
   const text = args.join(" ");
   if (!text) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Provide text")] });

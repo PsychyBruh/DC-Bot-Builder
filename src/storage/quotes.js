@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { writeJsonAtomic, readJsonSafe } from "../services/safeWrite.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = path.join(__dirname, "..", "..", "data", "quotes.json");
@@ -10,8 +11,7 @@ let quotes = [];
 export function loadQuotes() {
   try {
     if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      quotes = JSON.parse(raw);
+      quotes = readJsonSafe(DATA_FILE, []) || [];
     } else {
       quotes = [
         { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
@@ -32,7 +32,7 @@ function save() {
   try {
     const dir = path.dirname(DATA_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(quotes, null, 2), "utf-8");
+    writeJsonAtomic(DATA_FILE, quotes);
   } catch (err) {
     console.error("Failed to save quotes:", err.message);
   }

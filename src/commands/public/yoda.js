@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "yoda";
@@ -14,6 +15,7 @@ function yodaify(text) {
 }
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "yoda", "fun"))) return;
   const text = args.join(" ");
   if (!text) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Provide text")] });

@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "fortune";
@@ -19,6 +20,7 @@ const FORTUNES = [
 ];
 
 export async function execute(message) {
+  if (!(await applyCooldown(message, "fortune", "fun"))) return;
   const fortune = FORTUNES[Math.floor(Math.random() * FORTUNES.length)];
   const embed = baseEmbed(COLORS.gold)
     .setTitle("🥠 Fortune Cookie")

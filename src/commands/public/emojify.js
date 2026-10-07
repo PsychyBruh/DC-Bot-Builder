@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "emojify";
@@ -13,13 +14,14 @@ const EMOJI_LETTERS = {
 };
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "emojify", "fun"))) return;
   const text = args.join(" ");
   if (!text) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Provide text")] });
   }
   const result = text.toLowerCase().split("").map((c) => {
     if (c === " ") return "  ";
-    if (/[0-9]/.test(c)) return `⃣`;
+    if (/[0-9]/.test(c)) return `${c}\uFE0F\u20E3`;
     return EMOJI_LETTERS[c] || c;
   }).join("");
   await message.reply({ embeds: [baseEmbed(COLORS.cyan).setDescription(`> ${result}`)] });

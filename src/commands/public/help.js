@@ -63,11 +63,11 @@ export async function execute(message, args, { client, isAdmin }) {
         { name: "Category", value: cmd.category || "misc", inline: true },
         { name: "Admin only", value: cmd.adminOnly ? "Yes" : "No", inline: true },
       );
-    return message.reply({ embeds: [embed], ephemeral: true });
+    return message.reply({ embeds: [embed] });
   }
 
   if (sub) {
-    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`❌ Unknown: \`${sub}\``)], ephemeral: true });
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`❌ Unknown: \`${sub}\``)] });
   }
 
   const total = client.commands.size;
@@ -81,7 +81,7 @@ export async function execute(message, args, { client, isAdmin }) {
       `Click a category button below.\nType \`!help <command>\` for command details.\nType \`!help <category>\` to view a category.`,
     )
     .setThumbnail(client.user.displayAvatarURL({ dynamic: true, size: 256 }))
-    .setFooter({ text: "Only you see this" });
+    .setFooter({ text: `Menu for ${message.author.username}` });
 
   const rows = [];
   const entries = Object.entries(CATEGORIES).filter(([key]) => key !== "admin" || isAdmin);
@@ -91,7 +91,7 @@ export async function execute(message, args, { client, isAdmin }) {
     const [key, cat] = entries[i];
     const style = key === "admin" ? ButtonStyle.Danger : key === "ai" ? ButtonStyle.Primary : ButtonStyle.Secondary;
     row.addComponents(new ButtonBuilder()
-      .setCustomId(`help_${key}_${Date.now()}`)
+      .setCustomId(`help_${key}_${message.author.id}`)
       .setLabel(`${cat.emoji} ${cat.name}`)
       .setStyle(style),
     );
@@ -102,13 +102,17 @@ export async function execute(message, args, { client, isAdmin }) {
       count = 0;
     }
   }
-  await message.reply({ embeds: [intro], components: rows, ephemeral: true });
+  await message.reply({ embeds: [intro], components: rows });
 }
 
 export async function handleHelpButton(interaction, { client }) {
   if (!interaction.customId.startsWith("help_")) return false;
-  const cat = interaction.customId.split("_")[1];
+  const [, cat, ownerId] = interaction.customId.split("_");
   if (!CATEGORIES[cat]) return false;
+  // Only whoever ran !help can flip through their menu.
+  if (ownerId && /^\d+$/.test(ownerId) && ownerId !== interaction.user.id) {
+    return interaction.reply({ content: "❌ This isn't your help menu — run `!help` yourself.", ephemeral: true });
+  }
   if (cat === "admin") {
     const member = interaction.member;
     const isAdmin = member?.permissions?.has(8n);
@@ -118,6 +122,7 @@ export async function handleHelpButton(interaction, { client }) {
   }
   const meta = CATEGORIES[cat];
   const cmds = getCommandsByCategory(client, cat);
-  await interaction.update({ embeds: [buildHelpEmbed(meta, cmds)], components: [], ephemeral: true });
+  // Keep the category buttons so the user can keep navigating.
+  await interaction.update({ embeds: [buildHelpEmbed(meta, cmds)], components: interaction.message.components });
   return true;
 }

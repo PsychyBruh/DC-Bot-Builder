@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "poll";
@@ -6,6 +7,7 @@ export const usage = "!poll \"question\" \"opt1\" \"opt2\" ...";
 export const category = "utility";
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "poll", "social"))) return;
   const text = args.join(" ");
   if (!text) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Format: `!poll \"question\" \"opt1\" \"opt2\" ...")] });

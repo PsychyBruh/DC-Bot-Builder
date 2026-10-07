@@ -40,12 +40,30 @@ export const EMOJIS = {
   refresh: "🔄",
 };
 
+export function truncate(str, max) {
+  const s = String(str ?? "");
+  return s.length > max ? s.slice(0, max - 1) + "\u2026" : s;
+}
+
+// EmbedBuilder that trims text to Discord's limits instead of throwing,
+// so long user input (text transforms, polls, quotes, AI replies) can't crash a command.
+export class SafeEmbed extends EmbedBuilder {
+  setTitle(t) { return super.setTitle(t == null ? t : truncate(t, 256)); }
+  setDescription(d) { return super.setDescription(d == null || d === "" ? null : truncate(d, 4096)); }
+  setFooter(f) { return super.setFooter(f && f.text != null ? { ...f, text: truncate(f.text, 2048) } : f); }
+  setAuthor(a) { return super.setAuthor(a && a.name != null ? { ...a, name: truncate(a.name, 256) } : a); }
+  addFields(...fields) {
+    return super.addFields(...fields.flat().map((f) => ({ ...f, name: truncate(f.name || "\u200b", 256), value: truncate(f.value || "\u200b", 1024) })));
+  }
+  setURL(u) { return super.setURL(u || null); }
+}
+
 export function baseEmbed(color = COLORS.primary) {
-  return new EmbedBuilder().setColor(color).setTimestamp();
+  return new SafeEmbed().setColor(color).setTimestamp();
 }
 
 export function errorEmbed(message) {
-  return new EmbedBuilder()
+  return new SafeEmbed()
     .setColor(COLORS.danger)
     .setTitle(`${EMOJIS.cross} Error`)
     .setDescription(message)
@@ -53,7 +71,7 @@ export function errorEmbed(message) {
 }
 
 export function successEmbed(message) {
-  return new EmbedBuilder()
+  return new SafeEmbed()
     .setColor(COLORS.success)
     .setTitle(`${EMOJIS.check} Success`)
     .setDescription(message)
@@ -61,7 +79,7 @@ export function successEmbed(message) {
 }
 
 export function infoEmbed(title, description, color = COLORS.info) {
-  const e = new EmbedBuilder().setColor(color).setTimestamp();
+  const e = new SafeEmbed().setColor(color).setTimestamp();
   if (title) e.setTitle(title);
   if (description) e.setDescription(description);
   return e;

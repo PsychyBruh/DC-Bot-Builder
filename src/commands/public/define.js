@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "define";
@@ -6,6 +7,7 @@ export const usage = "!define <word>";
 export const category = "utility";
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "define", "social"))) return;
   const word = args.join(" ").trim().toLowerCase();
   if (!word) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Provide a word")] });
   try {

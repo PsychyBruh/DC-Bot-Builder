@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "wiki";
@@ -6,6 +7,7 @@ export const usage = "!wiki <query>";
 export const category = "utility";
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "wiki", "social"))) return;
   const query = args.join(" ");
   if (!query) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Provide a query: `!wiki cats`")] });

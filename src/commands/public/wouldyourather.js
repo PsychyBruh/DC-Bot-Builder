@@ -25,5 +25,7 @@ export async function execute(message) {
   const embed = baseEmbed(COLORS.purple)
     .setTitle("🤔 Would You Rather...")
     .setDescription(`>>> 🅰️ **${a}**\n\n🅱️ **${b}**\n\nReact with 🅰️ or 🅱️`);
-  await message.reply({ embeds: [embed] });
+  const sent = await message.reply({ embeds: [embed] });
+  await sent.react("🅰️").catch(() => {});
+  await sent.react("🅱️").catch(() => {});
 }

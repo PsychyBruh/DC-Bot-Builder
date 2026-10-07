@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "urban";
@@ -6,6 +7,7 @@ export const usage = "!urban <term>";
 export const category = "utility";
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "urban", "social"))) return;
   const term = args.join(" ").trim();
   if (!term) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Provide a term")] });

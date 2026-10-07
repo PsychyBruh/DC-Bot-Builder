@@ -1,30 +1,43 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
-import { execSync } from "child_process";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { applyCooldown } from "../utils/cooldown.js";
+
+const execAsync = promisify(exec);
+const FETCH_EVERY_MS = 5 * 60 * 1000;
+let lastFetch = 0;
 
 export const name = "update";
 export const description = "Show the latest bot updates and recent changes.";
 export const usage = "!update";
 export const category = "info";
 
-function safeExec(cmd) {
+// Async so a slow git call never blocks the bot's event loop.
+async function safeExec(cmd) {
   try {
-    return execSync(cmd, { cwd: process.cwd(), encoding: "utf8", timeout: 8000, stdio: ["pipe", "pipe", "ignore"] }).trim();
+    const { stdout } = await execAsync(cmd, { cwd: process.cwd(), encoding: "utf8", timeout: 8000 });
+    return stdout.trim();
   } catch {
     return "";
   }
 }
 
 export async function execute(message) {
-  const sha = safeExec("git rev-parse --short HEAD");
-  const date = safeExec("git log -1 --pretty=%ad --date=relative");
-  const branch = safeExec("git rev-parse --abbrev-ref HEAD") || "main";
+  if (!(await applyCooldown(message, "update", "social"))) return;
+  const sha = await safeExec("git rev-parse --short HEAD");
+  const date = await safeExec("git log -1 --pretty=%ad --date=relative");
+  const branch = (await safeExec("git rev-parse --abbrev-ref HEAD")) || "main";
 
-  safeExec("git fetch origin --quiet");
+  // Hit the network at most once every few minutes, no matter who runs this.
+  if (Date.now() - lastFetch > FETCH_EVERY_MS) {
+    lastFetch = Date.now();
+    await safeExec("git fetch origin --quiet");
+  }
 
-  const behind = safeExec(`git rev-list --count HEAD..origin/${branch}`);
-  const ahead = safeExec(`git rev-list --count origin/${branch}..HEAD`);
+  const behind = await safeExec(`git rev-list --count HEAD..origin/${branch}`);
+  const ahead = await safeExec(`git rev-list --count origin/${branch}..HEAD`);
 
-  const log = safeExec("git log -6 --pretty=%h|%ad|%s --date=short");
+  const log = await safeExec("git log -6 --pretty=%h|%ad|%s --date=short");
 
   const lines = (log || "")
     .split("\n")

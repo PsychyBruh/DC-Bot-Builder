@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "crypto";
@@ -12,14 +13,18 @@ const COINGECKO = {
 };
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "crypto", "social"))) return;
   const rawCoin = args[0]?.toLowerCase();
   if (!rawCoin) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Try: `!crypto btc` or `!crypto eth`")] });
   }
   const coin = COINGECKO[rawCoin] || rawCoin;
   const currency = (args[1] || "usd").toLowerCase();
+  if (!/^[a-z0-9-]{1,40}$/.test(coin) || !/^[a-z]{2,6}$/.test(currency)) {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Invalid coin or currency. Try: `!crypto btc usd`")] });
+  }
   try {
-    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coin}&vs_currencies=${currency}&include_24hr_change=true&include_market_cap=true`);
+    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(coin)}&vs_currencies=${encodeURIComponent(currency)}&include_24hr_change=true&include_market_cap=true`);
     if (!r.ok) {
       return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("❌ Coin not found or rate limited")] });
     }
@@ -29,6 +34,9 @@ export async function execute(message, args) {
       return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription(`❌ No data for ${rawCoin}`)] });
     }
     const price = data[currency];
+    if (price === undefined) {
+      return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription(`❌ Unknown currency \`${currency}\``)] });
+    }
     const change = data[`${currency}_24h_change`]?.toFixed(2) || "—";
     const changeColor = change.startsWith("-") ? COLORS.danger : COLORS.success;
     const embed = baseEmbed(changeColor)

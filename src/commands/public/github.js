@@ -1,3 +1,4 @@
+import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 
 export const name = "github";
@@ -6,12 +7,13 @@ export const usage = "!github <user/repo>";
 export const category = "utility";
 
 export async function execute(message, args) {
-  const repo = args.join(" ");
-  if (!repo || !repo.includes("/")) {
+  if (!(await applyCooldown(message, "github", "social"))) return;
+  const repo = (args[0] || "").replace(/^https?:\/\/github\.com\//, "").replace(/\/$/, "");
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Format: `!github user/repo`")] });
   }
   try {
-    const r = await fetch(`https://api.github.com/repos/${repo}`, {
+    const r = await fetch(`https://api.github.com/repos/${repo.split("/").map(encodeURIComponent).join("/")}`, {
       headers: { "User-Agent": "ProjectNova" },
     });
     if (!r.ok) {

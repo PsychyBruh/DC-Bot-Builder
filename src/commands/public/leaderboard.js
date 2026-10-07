@@ -21,6 +21,7 @@ export async function execute(message) {
   const guild = message.guild;
 
   // Primary source: users seen in this guild (fresh per use, always accurate).
+  if (!guild) return message.reply("This command only works in a server.");
   let inGuild = getUsersByGuild(guild.id);
 
   // Fallback: include economy users currently in the guild member cache

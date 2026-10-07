@@ -32,7 +32,7 @@ export async function execute(message, args) {
   if (sub === "remove" && args[1]) {
     const target = args[1];
     const reminders = getUserReminders(message.author.id);
-    const found = reminders.find((r) => r.id.endsWith(target));
+    const found = reminders.find((r) => r.id.split(":").pop() === target);
     if (!found) {
       return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Reminder not found")] });
     }
@@ -50,8 +50,17 @@ export async function execute(message, args) {
   if (!text) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Provide a message")] });
   }
+  if (duration.ms > 365 * 86400000) {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Reminders can be at most 1 year out.")] });
+  }
+  if (getUserReminders(message.author.id).length >= 25) {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ You have 25 reminders already. Remove some with `!reminder remove <id>`.")] });
+  }
+  if (text.length > 500) {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Reminder text is limited to 500 characters.")] });
+  }
   const remindAt = Date.now() + duration.ms;
-  const id = addReminder(message.author.id, message.channel.id, message.guild.id, text, remindAt);
+  const id = addReminder(message.author.id, message.channel.id, message.guild?.id ?? null, text, remindAt);
   const shortId = id.split(":").pop();
   const embed = baseEmbed(COLORS.success)
     .setTitle("⏰ Reminder Set")

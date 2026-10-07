@@ -19,11 +19,11 @@ export async function execute(message, args) {
   let bet = 0;
   if (betArg !== undefined) {
     const parsed = parseBet(betArg);
-    if (parsed.error) return message.reply({ embeds: [new EmbedBuilder().setColor(COLORS.danger).setDescription(`${EMOJIS.cross} ${parsed.error}`)] });
+    if (parsed.error) return message.reply({ embeds: [baseEmbed().setColor(COLORS.danger).setDescription(`${EMOJIS.cross} ${parsed.error}`)] });
     bet = parsed.bet;
     const balance = getUser(message.author.id).balance || 0;
     if (bet > 0 && balance < bet) {
-      return message.reply({ embeds: [new EmbedBuilder().setColor(COLORS.danger).setDescription(`${EMOJIS.cross} You don't have enough coins. Balance: ${EMOJIS.coin} **${balance.toLocaleString()}**`)] });
+      return message.reply({ embeds: [baseEmbed().setColor(COLORS.danger).setDescription(`${EMOJIS.cross} You don't have enough coins. Balance: ${EMOJIS.coin} **${balance.toLocaleString()}**`)] });
     }
   }
 
