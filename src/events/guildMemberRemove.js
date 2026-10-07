@@ -1,21 +1,42 @@
-import { EmbedBuilder } from "discord.js";
 import { getSettings } from "../storage/serverSettings.js";
+import { resolveChannel } from "../features/config.js";
+import { logJoinLeave, logMod, findExecutor, AuditLogEvent } from "../features/logging.js";
+import { baseEmbed, COLORS } from "../commands/utils/embeds.js";
+import { bump } from "../features/stats.js";
 
 export const name = "guildMemberRemove";
 
 export async function execute(member) {
   const guild = member.guild;
   const settings = getSettings(guild.id);
-  const channel = settings.goodbye_channel
-    ? guild.channels.cache.find((c) => c.name === settings.goodbye_channel || c.id === settings.goodbye_channel)
-    : null;
-  if (!channel || !channel.isTextBased()) return;
+  const tag = member.user?.tag || member.id;
+  bump(guild.id, "leaves");
+
+  // Was it a kick?
+  const kick = await findExecutor(guild, AuditLogEvent.MemberKick, member.id);
+  if (kick) {
+    await logMod(guild, baseEmbed(COLORS.danger)
+      .setTitle("👢 Member kicked")
+      .setDescription(`**User:** <@${member.id}> (${tag})\n**By:** ${kick.executor}\n**Reason:** ${kick.reason || "none given"}`)
+      .setFooter({ text: `ID: ${member.id}` }));
+  }
+
+  const roles = member.roles?.cache?.filter((r) => r.id !== guild.id).map((r) => `${r}`) || [];
+  await logJoinLeave(guild, baseEmbed(COLORS.danger)
+    .setTitle(kick ? "📤 Member left (kicked)" : "📤 Member left")
+    .setThumbnail(member.user?.displayAvatarURL?.() || null)
+    .setDescription([
+      `<@${member.id}> (${tag})`,
+      member.joinedTimestamp ? `**Joined:** <t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : null,
+      roles.length ? `**Roles:** ${roles.join(", ")}` : null,
+      `**Member count:** ${guild.memberCount}`,
+    ].filter(Boolean).join("\n"))
+    .setFooter({ text: `ID: ${member.id}` }));
+
+  const channel = resolveChannel(guild, "goodbye_channel", []);
+  if (!channel) return;
   const text = (settings.goodbye_message || "Goodbye {user}!")
-    .replace(/{user}/g, member.user?.tag || member.id)
+    .replace(/{user}/g, tag)
     .replace(/{server}/g, guild.name);
-  const embed = new EmbedBuilder()
-    .setColor(0xED4245)
-    .setDescription(text)
-    .setTimestamp();
-  await channel.send({ embeds: [embed] }).catch(() => {});
+  await channel.send({ embeds: [baseEmbed(COLORS.danger).setDescription(text)], allowedMentions: { parse: [] } }).catch(() => {});
 }

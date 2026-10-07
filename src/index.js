@@ -23,9 +23,10 @@ const client = new Client({
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildModeration,
   ],
   // Partials let edit/delete logging fire for messages sent before the bot started.
-  partials: [Partials.Message, Partials.Channel],
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.User, Partials.GuildMember],
 });
 
 client.commands = new Collection();
@@ -104,6 +105,10 @@ client.once("clientReady", async () => {
   const { startPrivateRoomCleaner } = await import("./commands/utils/privateRoomCleaner.js");
   startPrivateRoomCleaner(client);
 
+  // Timed server features: polls, raid unlock, playtests, schedules, Roblox status, counters, reports…
+  const { startFeatureScheduler } = await import("./features/scheduler.js");
+  startFeatureScheduler(client);
+
   // Giveaways that were running when the bot restarted
   const { resumeGiveaways } = await import("./commands/public/giveaway.js");
   resumeGiveaways(client);
@@ -130,7 +135,31 @@ client.once("clientReady", async () => {
 });
 
 client.on("messageCreate", async (message) => {
+  if (message.guild) {
+    // These also react to bot/webhook messages (sticky re-post, patch notes from Studio/GitHub webhooks)
+    try {
+      const { handleStickyMessage } = await import("./features/sticky.js");
+      handleStickyMessage(message);
+      const { handlePatchSourceMessage } = await import("./features/automation.js");
+      if (await handlePatchSourceMessage(message)) return;
+    } catch (err) { console.error("feature hook failed:", err.message); }
+  }
+
   if (message.author.bot) return;
+
+  if (message.guild) {
+    try {
+      const { runAutoMod } = await import("./features/safety.js");
+      if (await runAutoMod(message)) return;
+      const { handleSuggestionChannelMessage } = await import("./features/voting.js");
+      if (await handleSuggestionChannelMessage(message)) return;
+      const { handleChannelRules, touchTicket } = await import("./features/clean.js");
+      if (await handleChannelRules(message)) return;
+      touchTicket(message);
+      const { countMessage } = await import("./features/stats.js");
+      countMessage(message.guild.id, message.author.id);
+    } catch (err) { console.error("feature hook failed:", err.message); }
+  }
 
   if (/\bratio\b/i.test(message.content)) {
     try { await message.react("❤️"); } catch {}
@@ -184,6 +213,12 @@ client.on("messageCreate", async (message) => {
   if (command.adminOnly && !isAdmin) {
     return;
   }
+
+  // Commands outside the bot-commands channel get removed with a DM reminder (per-server setting)
+  try {
+    const { enforceBotChannel } = await import("./features/clean.js");
+    if (await enforceBotChannel(message, command)) return;
+  } catch {}
 
   try {
     await command.execute(message, args, { client, isAdmin });

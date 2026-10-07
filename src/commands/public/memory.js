@@ -1,9 +1,9 @@
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 
-export const name = "memory";
+export const name = "simon";
 export const description = "Simon-says style memory game";
-export const usage = "!memory";
+export const usage = "!simon";
 export const category = "games";
 
 const PHASE_DELAY = 1200;

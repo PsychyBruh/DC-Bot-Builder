@@ -8,6 +8,23 @@ An AI-powered Discord server architect. Uses Claude to help build and manage you
 - **`/chat [message]`** — Talk to the AI. Ask it to create roles, channels, categories, and set permissions. It will ask clarifying questions, confirm before executing, and update the server state.
 - **File reading** — attach text files (`.txt`, `.md`, `.json`, code, logs, etc.) to `!chat` or `!ask` and the AI reads them. Up to ~200 KB per file.
 
+## Server features (per server)
+
+Every feature is configured **per server** — tell `!chat` what you want ("set up tickets in #create-ticket with support, report and appeal categories, logs in #ticket-log") or use the commands below. `!setup` shows every setting and what it's currently pointing at.
+
+| Area | Commands |
+|---|---|
+| Setup | `!setup`, `!setup <key> <value>`, `!setup unset <key>` |
+| Panels | `!panel verify`, `!panel tickets`, `!panel applications`, `!panel roles <buttons\|dropdown\|reactions> …` |
+| Levels | `!level`, `!level-leaderboard`, `!rankroles add/remove/list/sync/stack` |
+| Community | `!suggest`, `!poll`, `!giveaway`, `!birthday`, starboard (react ⭐) |
+| Staff | `!ticket close/add/remove/rename`, `!warn`, `!warnings`, `!unwarn`, `!raid on/off`, `!suggestion approve/deny`, `!playtest` |
+| Admin | `!sticky`, `!schedule`, `!counter`, `!announce`, `!roblox …` |
+
+Automatic: welcome cards, join/leave/mod/message logs, anti-raid, anti-nuke, new-account verify review, scam/QR filter, mention/caps spam filter, wrong-channel nudges, auto-threads, media-only channels, inactive ticket close, forum tidy-up + duplicate finder, confirmed-bug bridge, Roblox status/leaderboards/achievement roles, birthday roles, weekly staff report.
+
+Optional `.env` keys: `ROBLOX_API_KEY` (Open Cloud, for in-game leaderboards), `GITHUB_TOKEN` (open GitHub issues for confirmed bugs).
+
 ## Setup
 
 ### Prerequisites

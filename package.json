@@ -8,7 +8,9 @@
     "start": "node src/index.js"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.65",
     "discord.js": "^14.26.4",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "jsqr": "^1.4.0"
   }
 }

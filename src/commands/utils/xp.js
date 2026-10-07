@@ -1,6 +1,5 @@
 import { addXp } from "../../storage/users.js";
 import { activeBooster } from "../../storage/economy.js";
-import { baseEmbed, COLORS } from "./embeds.js";
 
 const lastXp = new Map();
 
@@ -15,14 +14,11 @@ export async function handleXp(message) {
   }
   const baseGain = Math.min(15, 5 + Math.floor(message.content.length / 20));
   const xpGain = activeBooster(message.author.id, "xp") ? baseGain * 2 : baseGain;
-  const result = addXp(message.author.id, xpGain);
-  if (result.leveledUp) {
-    const embed = baseEmbed(COLORS.purple)
-      .setTitle("\u{1F389} Level Up!")
-      .setDescription(`<@${message.author.id}> reached level **${result.level}**!\n\u{1F4B0} Level-up bonus: \u{1FA99} **${(result.levelBonus || 0).toLocaleString()}** coins`)
-      .setFooter({ text: `Total XP: ${result.xp}` });
-    try {
-      await message.channel.send({ embeds: [embed] });
-    } catch {}
+  // Global XP drives the economy level bonus (paid silently); the per-server XP drives
+  // levels, rank roles and the level-up announcement.
+  addXp(message.author.id, xpGain);
+  if (message.guild) {
+    const { addGuildXp } = await import("../../features/levels.js");
+    await addGuildXp(message, xpGain);
   }
 }

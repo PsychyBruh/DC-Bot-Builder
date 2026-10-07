@@ -15,6 +15,7 @@ const CATEGORIES = {
   rooms: { emoji: "🔒", name: "Private Rooms", color: COLORS.info },
   utility: { emoji: "🔧", name: "Utility", color: COLORS.info },
   ai: { emoji: "🤖", name: "AI Commands", color: COLORS.purple },
+  mod: { emoji: "🛡️", name: "Moderation & Staff", color: COLORS.danger },
   admin: { emoji: "⚙️", name: "Admin", color: COLORS.warning },
   info: { emoji: "❓", name: "Info", color: COLORS.info },
 };

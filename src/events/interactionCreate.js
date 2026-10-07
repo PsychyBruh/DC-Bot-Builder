@@ -9,15 +9,19 @@ export async function execute(interaction, client) {
     console.error("interactionCreate error:", err);
     try {
       if (interaction.deferred || interaction.replied) {
-        await interaction.followUp({ content: "This button had an error: " + (err && err.message || "unknown"), ephemeral: true });
+        await interaction.followUp({ content: "Something went wrong: " + (err && err.message || "unknown"), ephemeral: true });
       } else {
-        await interaction.reply({ content: "This button had an error: " + (err && err.message || "unknown"), ephemeral: true });
+        await interaction.reply({ content: "Something went wrong: " + (err && err.message || "unknown"), ephemeral: true });
       }
     } catch {}
   }
 }
 
 async function _executeImpl(interaction, client) {
+  // Server features (tickets, self-roles, verify, applications, polls, giveaways…)
+  const { routeFeatureInteraction } = await import("../features/router.js");
+  if (await routeFeatureInteraction(interaction)) return;
+
   if (!interaction.isButton()) return;
 
   const id = interaction.customId;

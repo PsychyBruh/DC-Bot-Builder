@@ -48,6 +48,34 @@ export function addGiveawayEntry(id, userId) {
   return true;
 }
 
+// Toggle a user's entry; returns true if now entered, false if removed, null if closed.
+export function toggleGiveawayEntry(id, userId) {
+  const g = giveaways.get(id);
+  if (!g || g.ended) return null;
+  g.entries ??= [];
+  const i = g.entries.indexOf(userId);
+  if (i >= 0) g.entries.splice(i, 1);
+  else g.entries.push(userId);
+  save();
+  return i < 0;
+}
+
+export function findGiveawayByMessage(messageId) {
+  return [...giveaways.values()].find((g) => g.messageId === messageId) || null;
+}
+
+export function updateGiveaway(id, patch) {
+  const g = giveaways.get(id);
+  if (!g) return null;
+  Object.assign(g, patch);
+  save();
+  return g;
+}
+
+export function getAllGiveaways() {
+  return [...giveaways.values()];
+}
+
 export function endGiveaway(id, winnerId = null) {
   const g = giveaways.get(id);
   if (!g) return null;

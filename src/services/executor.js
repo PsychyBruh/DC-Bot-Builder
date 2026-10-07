@@ -1,3 +1,4 @@
+import { FEATURE_TOOLS } from "../features/aiTools.js";
 import { ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import { setSetting, removeSetting, getSettings } from "../storage/serverSettings.js";
 import { registerButtonAction } from "../storage/buttonActions.js";
@@ -80,6 +81,7 @@ function resolvePermissions(permNames) {
 
 export function getDiscordTools() {
   return [
+    ...FEATURE_TOOLS,
     {
       name: "create_role",
       description: "Create a role",
@@ -409,6 +411,9 @@ export function getDiscordTools() {
 }
 
 export async function executeAction(guild, action, params, force = false, userId) {
+  // Server feature configuration tools (tickets, panels, ranks, safety settings, Roblox…)
+  const { isFeatureTool, executeFeatureTool } = await import("../features/aiTools.js");
+  if (isFeatureTool(action)) return executeFeatureTool(guild, action, params || {});
   if (!force && isDestructive(action)) {
     return { success: true, needsConfirmation: true, action, params, message: `This action (${action}) requires your confirmation. Reply with "yes" or "confirm" to proceed.` };
   }
