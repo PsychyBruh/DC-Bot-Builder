@@ -1611,7 +1611,7 @@ export const usage = "!wordle";
 export const category = "games";
 
 export async function execute(message) {
-  if (!(await applyCooldown(message, "wordle", "heavy"))) return;
+  if (!(await applyCooldown(message, "wordle", "long"))) return;
   const word = WORDS[Math.floor(Math.random() * WORDS.length)].toUpperCase();
   const game = { word, guesses: [], won: false };
   games.set(`${message.channelId}:${message.author.id}`, game);
@@ -1698,12 +1698,12 @@ export async function handleWordleGuess(message, word) {
   const triesLeft = 6 - game.guesses.length;
   if (guess === game.word) {
     game.won = true;
-    const PAYOUT = { 1: 225000, 2: 135000, 3: 90000, 4: 67500, 5: 45000, 6: 22500 };
-    const payout = PAYOUT[game.guesses.length] || 22500;
+    const PAYOUT = { 1: 3000, 2: 2000, 3: 1500, 4: 1000, 5: 750, 6: 500 };
+    const payout = PAYOUT[game.guesses.length] || 500;
     const won = rewardCoins(message.author.id, payout);
     const embed = baseEmbed(COLORS.success)
       .setTitle("\u{1F389} You got it!")
-      .setDescription(`${renderBoard(game)}\n\nThe word was **${game.word}**. Solved in ${game.guesses.length}/6!\n\n${EMOJIS.coin} You earned **${won.toLocaleString()}** coins!${won !== payout ? `\n**2x coin boost applied!** (base ${payout.toLocaleString()})` : ""}`);
+      .setDescription(`${renderBoard(game)}\n\nThe word was **${game.word}**. Solved in ${game.guesses.length}/6!\n\n${EMOJIS.coin} You earned **${won.toLocaleString()}** coins!${won !== payout ? `\n*Boosted from base ${payout.toLocaleString()}*` : ""}`);
     games.delete(`${message.channelId}:${message.author.id}`);
     await message.reply({ embeds: [embed] });
     return true;

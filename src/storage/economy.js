@@ -34,11 +34,9 @@ export function jobSwitchCooldown(targetJobId) {
 export const ITEMS = [
   { id: "coin_boost_1h",  name: "Coin Boost (1h)",  emoji: "\u{1F4B0}", price: 500,  sell: 250, type: "booster", booster: "coin",  duration: 60 * 60 * 1000, desc: "2x coin rewards for 1 hour" },
   { id: "xp_boost_1h",    name: "XP Boost (1h)",     emoji: "\u{1F4C8}", price: 400,  sell: 200, type: "booster", booster: "xp",   duration: 60 * 60 * 1000, desc: "2x XP for 1 hour" },
-  { id: "luck_charm",     name: "Luck Charm",        emoji: "\u{1F340}", price: 1500, sell: 750, type: "booster", booster: "luck", duration: 30 * 60 * 1000, desc: "+20% gambling win rate for 30 min" },
+  { id: "luck_charm",     name: "Luck Charm",        emoji: "\u{1F340}", price: 1500, sell: 750, type: "booster", booster: "luck", duration: 30 * 60 * 1000, desc: "+5% luck on gambling & stealing for 30 min" },
   { id: "shield_24h",     name: "Shield (24h)",       emoji: "\u{1F6E1}\uFE0F", price: 1000, sell: 500, type: "booster", booster: "shield", duration: 24 * 60 * 60 * 1000, desc: "Immune to !steal for 24 hours" },
-  { id: "bread",          name: "Bread",              emoji: "\u{1F35E}", price: 50,   sell: 25, type: "consumable", heal: "hp", amount: 10, desc: "+10 HP in duels" },
-  { id: "health_potion",  name: "Health Potion",    emoji: "\u{1F48A}", price: 250,  sell: 125, type: "consumable", heal: "hp", amount: 40, desc: "+40 HP in duels" },
-  { id: "bribe_token",    name: "Bribe Token",       emoji: "\u{1F4B9}", price: 800,  sell: 400, type: "consumable", desc: "Avoid jail once if used before arrest" },
+  { id: "bribe_token",    name: "Bribe Token",       emoji: "\u{1F4B9}", price: 800,  sell: 400, type: "consumable", desc: "Get out of jail free with !bail" },
   { id: "trophy",         name: "Golden Trophy",     emoji: "\u{1F3C6}", price: 5000, sell: 2500, type: "collectible", desc: "Use it for a permanent Golden Aura: +10% income, +5% luck, and a crown on leaderboards" },
 ];
 

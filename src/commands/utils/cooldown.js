@@ -10,6 +10,8 @@ export const COOLDOWNS = {
   ai_long: 60_000,
   fun: 2_000,
   rep: 86_400_000,
+  half_day: 43_200_000,
+  long: 300_000, // 5 min — high-payout games
   crime: 20_000,
   pity: 60_000, // 1 min — broke-waiting-for-work commands (!beg, !search)
 };

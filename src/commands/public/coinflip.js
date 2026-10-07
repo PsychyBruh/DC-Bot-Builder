@@ -1,21 +1,26 @@
 import { EmbedBuilder } from "discord.js";
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
-import { rewardCoins, luckBonus, activeBooster } from "../../storage/economy.js";
+import { getUser, adjustBalance } from "../../storage/users.js";
+import { luckBonus, activeBooster } from "../../storage/economy.js";
+import { parseBet, advanceGambleQuest } from "../utils/betting.js";
 
 export const name = "coinflip";
-export const description = "Flip a coin. Optional bet (e.g. !coinflip 100)";
-export const usage = "!coinflip [amount]";
+export const description = "Flip a coin. Optional bet and side (e.g. !coinflip 100 tails)";
+export const usage = "!coinflip [amount] [heads|tails]";
 export const category = "games";
 
 export async function execute(message, args) {
   if (!(await applyCooldown(message, "coinflip", "game"))) return;
-  const choice = Math.random() < 0.5 ? "heads" : "tails";
+  const sideArg = args.find((a) => /^(h|heads|t|tails)$/i.test(a));
+  const pick = sideArg && /^t/i.test(sideArg) ? "tails" : "heads";
+  const betArg = args.find((a) => a !== sideArg);
 
   let bet = 0;
-  if (args[0] && /^\d+$/.test(args[0])) {
-    bet = parseInt(args[0], 10);
+  if (betArg !== undefined) {
+    const parsed = parseBet(betArg);
+    if (parsed.error) return message.reply({ embeds: [new EmbedBuilder().setColor(COLORS.danger).setDescription(`${EMOJIS.cross} ${parsed.error}`)] });
+    bet = parsed.bet;
     const balance = getUser(message.author.id).balance || 0;
     if (bet > 0 && balance < bet) {
       return message.reply({ embeds: [new EmbedBuilder().setColor(COLORS.danger).setDescription(`${EMOJIS.cross} You don't have enough coins. Balance: ${EMOJIS.coin} **${balance.toLocaleString()}**`)] });
@@ -23,24 +28,28 @@ export async function execute(message, args) {
   }
 
   let resultText = "";
+  let result = Math.random() < 0.5 ? "heads" : "tails";
   if (bet > 0) {
     adjustBalance(message.author.id, -bet);
-    try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "gamble"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`gamble ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
-    const won = Math.random() < Math.min(0.65, 0.45 + (activeBooster(message.author.id, "luck") ? 0.05 : 0) + luckBonus(message.author.id));
+    await advanceGambleQuest(message.author.id, message.channel);
+    // Luck nudges the odds but the house always keeps an edge (max 49%).
+    const winChance = Math.min(0.49, 0.45 + (activeBooster(message.author.id, "luck") ? 0.05 : 0) + luckBonus(message.author.id));
+    const won = Math.random() < winChance;
+    result = won ? pick : pick === "heads" ? "tails" : "heads";
     if (won) {
-      const winAmt = rewardCoins(message.author.id, bet * 2);
-      updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + (winAmt - bet); });
+      // Gambling payouts are never boosted.
+      adjustBalance(message.author.id, bet * 2);
+      const winAmt = bet * 2;
       resultText = `\n${EMOJIS.coin} You won **${(winAmt - bet).toLocaleString()}** coins!`;
     } else {
-      updateUser(message.author.id, (u) => { u.coinsLost = (u.coinsLost || 0) + bet; });
       resultText = `\n${EMOJIS.cross} You lost **${bet.toLocaleString()}** coins.`;
     }
   }
 
   const embed = baseEmbed(COLORS.gold)
     .setTitle(`${EMOJIS.coin} Coin Flip`)
-    .setDescription(`**${choice.toUpperCase()}**!${resultText}`)
-    .setFooter({ text: bet > 0 ? `Bet: ${bet.toLocaleString()}` : "Try !coinflip 100 to bet" });
+    .setDescription(`${bet > 0 ? `You picked **${pick}**. ` : ""}It landed **${result.toUpperCase()}**!${resultText}`)
+    .setFooter({ text: bet > 0 ? `Bet: ${bet.toLocaleString()}` : "Try !coinflip 100 tails to bet" });
 
   await message.reply({ embeds: [embed] });
 }

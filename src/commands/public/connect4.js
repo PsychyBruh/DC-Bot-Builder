@@ -51,10 +51,16 @@ export async function execute(message, args) {
   if (!opponent || opponent.bot || opponent.id === message.author.id) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Mention a real user")] });
   }
+  const current = games.get(`${message.channelId}`);
+  if (current && Date.now() - current.lastMove < IDLE_MS) {
+    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("❌ A game is already running in this channel. It expires after 5 minutes without a move.")] });
+  }
   const game = {
     board: Array.from({ length: ROWS }, () => Array(COLS).fill(null)),
     players: [message.author.id, opponent.id],
+    names: [message.author.username, opponent.username],
     turn: 0,
+    lastMove: Date.now(),
   };
   games.set(`${message.channelId}`, game);
   const embed = baseEmbed(COLORS.info)
@@ -80,8 +86,10 @@ export async function handleConnect4Button(interaction) {
   }
   if (placed === -1) return interaction.reply({ content: "❌ Column full", ephemeral: true });
   game.turn = 1 - game.turn;
-  const p1 = await interaction.client.users.fetch(game.players[0]);
-  const p2 = await interaction.client.users.fetch(game.players[1]);
+  game.lastMove = Date.now();
+  // Usernames are cached at game start instead of fetched on every click.
+  const p1 = { username: game.names[0] };
+  const p2 = { username: game.names[1] };
   const winner = checkWin(game.board, token);
   const embed = baseEmbed(winner ? COLORS.success : COLORS.info);
   const over = winner || game.board.every((row) => row.every((cell) => cell));

@@ -4,7 +4,7 @@ import { getUser, updateUser } from "../../storage/users.js";
 import { rewardCoins } from "../../storage/economy.js";
 
 export const name = "fish";
-export const description = "Cast your line and reel in a random fish. 30s cooldown, up to 2k+ legendaries.";
+export const description = "Cast your line and reel in a random fish. 1 min cooldown, up to 2k+ legendaries.";
 export const usage = "!fish";
 export const category = "economy";
 
@@ -18,7 +18,6 @@ const FISH = [
   { p: 0.001,name: "The Kraken's Catch", emoji: "\u{1F419}", min: 3000, max: 5000, color: COLORS.gold, legendary: true },
 ];
 
-const FISH_CD = 30 * 1000;
 
 export async function execute(message) {
   if (!(await applyCooldown(message, "fish", "pity"))) return;
@@ -43,6 +42,6 @@ export async function execute(message) {
   const embed = baseEmbed(fish.color)
     .setTitle(`${fish.emoji} You caught a ${fish.name}!`)
     .setDescription(`Reeled in a **${fish.name}** and sold it for ${EMOJIS.coin} **${won.toLocaleString()}**.${isFisherman ? `\n${"\u{1F3A3}"} **Fisherman 4x bonus!** (base ${baseValue.toLocaleString()})` : ""}`)
-    .setFooter({ text: fish.legendary ? "LEGENDARY \u2014 1 in a thousand casts!" : `Cooldown: 30s | Total caught: ${(getUser(message.author.id).fishCaught || 0)}` });
+    .setFooter({ text: fish.legendary ? "LEGENDARY \u2014 1 in a thousand casts!" : `Cooldown: 1 min | Total caught: ${(getUser(message.author.id).fishCaught || 0)}` });
   await message.reply({ embeds: [embed] });
 }

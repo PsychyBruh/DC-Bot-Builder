@@ -1,7 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance, updateUser, userExists } from "../../storage/users.js";
-import { rewardCoins } from "../../storage/economy.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 
 const games = new Map();
@@ -19,13 +18,14 @@ export async function stopSession(channelId, userId, channel) {
   if (!g) return false;
   // Pending challenge: refund both and delete
   if (g.pending) {
+    // Only the challenger has paid until the opponent accepts.
+    clearTimeout(g.pending.challengeTimer);
     adjustBalance(g.pending.challenger.id, g.pending.wager);
-    adjustBalance(g.pending.opponent.id, g.pending.wager);
     games.delete(channelId);
     return true;
   }
   // Active battle: the player who stops FORFEITS (opponent takes 2x wager)
-  if (g.players.includes(userId)) {
+  if (g.players.some((p) => p.id === userId)) {
     if (g.timer) clearTimeout(g.timer);
     const loserIdx = g.players.findIndex((p) => p.id === userId);
     const winnerIdx = 1 - loserIdx;
@@ -89,6 +89,10 @@ function buildBattleEmbed(game, log) {
 }
 
 async function finishGame(message, game, channel, winnerIdx, loserIdx) {
+  // Guard against double payout (double-clicks, timer racing a final move).
+  if (game.paid) return;
+  game.paid = true;
+  game.finished = true;
   // Delete the game from active map (idempotent: stopSession may have already done so)
   if (channel && channel.id && games.has(channel.id)) games.delete(channel.id);
   // refund wagers on a draw
@@ -101,14 +105,16 @@ async function finishGame(message, game, channel, winnerIdx, loserIdx) {
     if (channel) await channel.send({ embeds: [emb], components: [disabledRow()] });
     return;
   }
-  const wonAmt = rewardCoins(game.players[winnerIdx].id, game.wager * 2);
+  // Duel winnings are a transfer between players — never boosted.
+  const wonAmt = game.wager * 2;
+  adjustBalance(game.players[winnerIdx].id, wonAmt);
   updateUser(game.players[winnerIdx].id, (u) => { u.duelsWon = (u.duelsWon || 0) + 1; });
   updateUser(game.players[loserIdx].id, (u) => { u.duelsLost = (u.duelsLost || 0) + 1; });
   const win = game.players[winnerIdx];
   const lose = game.players[loserIdx];
   const emb = baseEmbed(COLORS.success)
     .setTitle(`\u{1F3C6} ${win.username} wins!`)
-    .setDescription(`\u{1F4B0} **${win.username}** takes **${wonAmt.toLocaleString()}** coins!${wonAmt !== game.wager * 2 ? `\n**2x coin boost applied!** (base ${(game.wager * 2).toLocaleString()})` : ""}\n\nFinal HP:\n${hpBar(game.hp[winnerIdx])} ${win.username}\n${hpBar(game.hp[loserIdx])} ${lose.username}`)
+    .setDescription(`\u{1F4B0} **${win.username}** takes **${wonAmt.toLocaleString()}** coins!\n\nFinal HP:\n${hpBar(game.hp[winnerIdx])} ${win.username}\n${hpBar(game.hp[loserIdx])} ${lose.username}`)
     .setFooter({ text: `Loser: ${lose.username}` });
   if (channel) await channel.send({ embeds: [emb], components: [disabledRow()] });
 }
@@ -168,6 +174,7 @@ async function applyMove(interaction, game, channel, action) {
   }
 
   if (ended) {
+    game.finished = true;
     game.timer && clearTimeout(game.timer);
     await interaction.update({ embeds: [buildBattleEmbed(game, game.log)], components: [disabledRow()] });
     await finishGame(interaction, game, channel, winnerIdx, loserIdx);
@@ -185,7 +192,7 @@ function resetTurnTimer(client, channelId, channel, botMessage) {
   if (game.timer) clearTimeout(game.timer);
   game.timer = setTimeout(async () => {
     const g = games.get(channelId);
-    if (!g) return;
+    if (g !== game || !g.players || g.finished) return;
     // current turn's player forfeits on timeout -> other player wins
     const idleIdx = g.turn;
     const winIdx = 1 - idleIdx;
@@ -200,6 +207,9 @@ function resetTurnTimer(client, channelId, channel, botMessage) {
 
 export async function execute(message, args) {
   if (!(await applyCooldown(message, "duel", "game"))) return;
+  if (games.has(message.channelId)) {
+    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription(`${EMOJIS.cross} There's already a duel in this channel. Wait for it to finish.`)] });
+  }
   const target = message.mentions.users.first();
   if (!target) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Mention an opponent`)] });
   if (target.id === message.author.id) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You can't duel yourself`)] });
@@ -214,20 +224,20 @@ export async function execute(message, args) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} hasn't used the bot's economy yet.`)] });
   }
   const wager = parseInt(args.find((a) => /^\d+$/.test(a)), 10) || 0;
+  if (wager > 50000) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Maximum wager is 50,000 coins.`)] });
   if (wager < 1) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Specify a wager: \`!duel @user 100\``)] });
   const bal1 = getUser(message.author.id).balance || 0;
   const bal2 = getUser(target.id).balance || 0;
   if (bal1 < wager) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You don't have ${wager} coins (balance: ${bal1.toLocaleString()})`)] });
   if (bal2 < wager) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${target.username} doesn't have ${wager} coins`)] });
 
-  // deduct upfront
+  // Only the challenger pays now; the opponent pays when they accept.
   adjustBalance(message.author.id, -wager);
-  adjustBalance(target.id, -wager);
 
   const challengeEmbed = baseEmbed(COLORS.gold)
     .setTitle(`\u{1F396}\uFE0F Duel Challenge`)
     .setDescription(`**${message.author.username}** challenges **${target.username}** to a battle for **${wager.toLocaleString()}** coins!\n\n${target}, click **Accept** within 30s to begin.\n\n_Battle: 100 HP each. Pick Attack / Defend / Special each turn._`)
-    .setFooter({ text: `Wager: ${wager.toLocaleString()} each (both deducted) | Draw = refunded` });
+    .setFooter({ text: `Wager: ${wager.toLocaleString()} each (opponent pays on accept) | Draw = refunded` });
   const acceptRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`dl_acc_${Date.now()}`).setLabel("Accept").setStyle(ButtonStyle.Success).setEmoji("\u2705"),
     new ButtonBuilder().setCustomId(`dl_dec_${Date.now()}`).setLabel("Decline").setStyle(ButtonStyle.Danger).setEmoji(EMOJIS.cross),
@@ -236,10 +246,11 @@ export async function execute(message, args) {
 
   // challenge auto-refund on timeout
   const challengeTimer = setTimeout(() => {
-    if (games.get(message.channelId)) return; // game started, leave alone
+    const g = games.get(message.channelId);
+    if (!g || !g.pending || g.pending.challengeMsg !== challengeMsg) return; // accepted, declined or stopped
+    games.delete(message.channelId);
     adjustBalance(message.author.id, wager);
-    adjustBalance(target.id, wager);
-    try { challengeMsg.edit({ embeds: [baseEmbed(COLORS.warning).setDescription("\u23F0 Challenge expired. Wagers refunded.")], components: [] }); } catch {}
+    try { challengeMsg.edit({ embeds: [baseEmbed(COLORS.warning).setDescription("\u23F0 Challenge expired. Wager refunded.")], components: [] }); } catch {}
   }, CHALLENGE_TIMEOUT_MS);
 
   // store pending challenge so the button handler can find it
@@ -268,14 +279,21 @@ export async function handleDuelButton(interaction) {
 
     if (interaction.customId.startsWith("dl_dec_")) {
       adjustBalance(challenger.id, wager);
-      adjustBalance(opponent.id, wager);
       games.delete(interaction.channelId);
-      try { await challengeMsg.edit({ embeds: [baseEmbed(COLORS.danger).setDescription(`\u{1F6AB} ${opponent.username} declined the duel. Wagers refunded.`)], components: [] }); } catch {}
+      try { await challengeMsg.edit({ embeds: [baseEmbed(COLORS.danger).setDescription(`\u{1F6AB} ${opponent.username} declined the duel. Wager refunded.`)], components: [] }); } catch {}
       try { await interaction.deferUpdate(); } catch {}
       return true;
     }
 
-    // ACCEPT -> start battle
+    // ACCEPT -> opponent pays now (balance may have changed since the challenge)
+    if ((getUser(opponent.id).balance || 0) < wager) {
+      adjustBalance(challenger.id, wager);
+      games.delete(interaction.channelId);
+      try { await challengeMsg.edit({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${opponent.username} can't cover the ${wager.toLocaleString()} wager anymore. Challenger refunded.`)], components: [] }); } catch {}
+      try { await interaction.deferUpdate(); } catch {}
+      return true;
+    }
+    adjustBalance(opponent.id, -wager);
     const battle = {
       players: [challenger, opponent],
       hp: [MAX_HP, MAX_HP],
@@ -294,7 +312,7 @@ export async function handleDuelButton(interaction) {
   }
 
   // --- BATTLE MOVES ---
-  if (!game || game.pending) {
+  if (!game || game.pending || game.finished) {
     try { await interaction.reply({ content: "No active battle in this channel.", ephemeral: true }); } catch {}
     return true;
   }

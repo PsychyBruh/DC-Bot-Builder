@@ -17,6 +17,6 @@ export async function execute(message) {
   const embed = baseEmbed(COLORS.gold)
     .setTitle(`${EMOJIS.money} Available Jobs`)
     .setDescription(lines.join("\n\n"))
-    .setFooter({ text: `Use !job <name> to take one. Switching jobs costs a 24h cooldown.` });
+    .setFooter({ text: `Use !job <name> to take one. Switching jobs has a 5–90 min cooldown depending on the job.` });
   await message.reply({ embeds: [embed] });
 }

@@ -7,9 +7,13 @@ export const usage = "!memory";
 export const category = "games";
 
 const PHASE_DELAY = 1200;
+const playing = new Set(); // one game per user at a time, so collectors don't overlap
 
 export async function execute(message) {
   if (!(await applyCooldown(message, "memory", "game"))) return;
+  if (playing.has(message.author.id)) return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("❌ Finish your current memory game first.")] });
+  playing.add(message.author.id);
+  setTimeout(() => playing.delete(message.author.id), PHASE_DELAY * 6 + 16000);
   const sequence = Array.from({ length: 4 }, () => Math.floor(Math.random() * 4));
   const emojis = ["🔴", "🟢", "🔵", "🟡"];
   let revealed = "";
@@ -27,6 +31,7 @@ export async function execute(message) {
   await msg.edit({ embeds: [promptEmbed] });
   const filter = (m) => m.author.id === message.author.id;
   const collector = message.channel.createMessageCollector({ filter, time: 15000, max: 1 });
+  collector.on("end", () => playing.delete(message.author.id));
   collector.on("collect", (m) => {
     const guess = m.content.trim();
     const correct = sequence.map((i) => emojis[i]).join(" ");

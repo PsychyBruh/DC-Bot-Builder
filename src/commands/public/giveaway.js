@@ -1,6 +1,7 @@
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { adjustBalance, getUser } from "../../storage/users.js";
+import { createGiveaway, getGiveaway, endGiveaway, removeGiveaway, getActiveGiveaways } from "../../storage/giveaways.js";
 
 export const name = "giveaway";
 export const description = "Host a coin giveaway (creator funds the pot)";
@@ -20,9 +21,10 @@ export async function execute(message, args) {
   const amount = parseInt(args[0], 10);
   const winners = parseInt(args[1], 10);
   const dur = parseDuration(args[2]);
-  if (!amount || amount < 1 || !winners || winners < 1 || !dur || dur < 10000) {
-    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Usage: `!giveaway <amount> <winners> <duration>`\nExample: `!giveaway 100 1 1h` (duration: `30s`, `5m`, `2h`, or `1d`; minimum 10s)")] });
+  if (!amount || amount < 1 || !winners || winners < 1 || !dur || dur < 10000 || dur > 7 * 86400000) {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Usage: `!giveaway <amount> <winners> <duration>`\nExample: `!giveaway 100 1 1h` (duration: `30s`, `5m`, `2h`, or `1d`; 10s to 7d)")] });
   }
+  if (winners > 20) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Max 20 winners.")] });
   const totalCost = amount * winners;
   const user = getUser(message.author.id);
   if ((user.balance || 0) < totalCost) {
@@ -32,38 +34,64 @@ export async function execute(message, args) {
   const endsAt = Date.now() + dur;
   const embed = baseEmbed(COLORS.gold)
     .setTitle("🎉 GIVEAWAY")
-    .setDescription(`**${message.author.username}** is giving away **${amount} coins** × **${winners}** winners!\n\nReact with 🎉 to enter.\nEnds <t:${Math.floor(endsAt / 1000)}:R>`)
-    .setFooter({ text: `Pot: ${totalCost} coins` });
-  const m = await message.reply({ embeds: [embed] });
-  await m.react("🎉");
+    .setDescription(`**${message.author.username}** is giving away **${amount} coins** × **${winners}** winners!
 
-  const entries = new Set();
-  const filter = (reaction, user) => {
-    if (reaction.emoji.name !== "🎉") return false;
-    if (user.bot) return false;
-    entries.add(user.id);
-    return true;
-  };
-  const collector = m.createReactionCollector({ filter, time: dur });
-  collector.on("end", async () => {
-    try {
-      const ids = [...entries];
-      if (!ids.length) {
-        const e = baseEmbed(COLORS.warning).setTitle("🎉 Giveaway Ended").setDescription("No entries.");
-        return m.edit({ embeds: [e] });
-      }
-      const winnersList = [];
-      const pool = [...ids];
-      for (let i = 0; i < winners && pool.length; i++) {
-        const idx = Math.floor(Math.random() * pool.length);
-        winnersList.push(pool[idx]);
-        pool.splice(idx, 1);
-      }
-      winnersList.forEach((id) => adjustBalance(id, amount));
-      const e = baseEmbed(COLORS.gold)
-        .setTitle("🎉 Giveaway Ended")
-        .setDescription(`Winners: ${winnersList.map((id) => `<@${id}>`).join(", ")}\nEach won **${amount} coins**!`);
-      await m.edit({ embeds: [e] });
-    } catch {}
-  });
+React with 🎉 to enter.
+Ends <t:${Math.floor(endsAt / 1000)}:R>`)
+    .setFooter({ text: `Pot: ${totalCost} coins • host can't win` });
+  const m = await message.reply({ embeds: [embed] });
+  await m.react("🎉").catch(() => {});
+  // Persisted so a restart doesn't lose the pot — resumeGiveaways() reschedules it.
+  const g = createGiveaway({ guildId: message.guildId, channelId: message.channelId, messageId: m.id, hostId: message.author.id, amount, winners, endsAt });
+  scheduleEnd(message.client, g);
+}
+
+function scheduleEnd(client, g) {
+  const delay = Math.max(0, g.endsAt - Date.now());
+  setTimeout(() => finishGiveaway(client, g.id).catch((e) => console.error("giveaway end failed:", e.message)), delay);
+}
+
+async function finishGiveaway(client, id) {
+  const g = getGiveaway(id);
+  if (!g || g.ended) return;
+  endGiveaway(id); // mark first so a double-fire can't pay twice
+  let m = null;
+  try {
+    const channel = await client.channels.fetch(g.channelId);
+    m = await channel.messages.fetch(g.messageId);
+  } catch {}
+  let ids = [];
+  try {
+    const reaction = m?.reactions.cache.get("🎉");
+    if (reaction) {
+      const users = await reaction.users.fetch();
+      ids = [...users.values()].filter((u) => !u.bot && u.id !== g.hostId).map((u) => u.id);
+    }
+  } catch {}
+  const winnersList = [];
+  const pool = [...ids];
+  for (let i = 0; i < g.winners && pool.length; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    winnersList.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+  winnersList.forEach((uid) => adjustBalance(uid, g.amount));
+  // Refund any unfilled winner slots to the host
+  const refund = (g.winners - winnersList.length) * g.amount;
+  if (refund > 0) adjustBalance(g.hostId, refund);
+  removeGiveaway(id);
+  if (!m) return;
+  const e = winnersList.length
+    ? baseEmbed(COLORS.gold).setTitle("🎉 Giveaway Ended").setDescription(`Winners: ${winnersList.map((uid) => `<@${uid}>`).join(", ")}
+Each won **${g.amount} coins**!${refund ? `
+${refund} unclaimed coins refunded to the host.` : ""}`)
+    : baseEmbed(COLORS.warning).setTitle("🎉 Giveaway Ended").setDescription(`No entries. ${refund} coins refunded to the host.`);
+  await m.edit({ embeds: [e] }).catch(() => {});
+}
+
+// Called once on startup: reschedule (or immediately finish) giveaways that survived a restart.
+export function resumeGiveaways(client) {
+  for (const g of getActiveGiveaways()) {
+    if (g.messageId && g.hostId) scheduleEnd(client, g);
+  }
 }

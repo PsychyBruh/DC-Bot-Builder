@@ -1,6 +1,5 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
-import { getUser } from "../../storage/users.js";
 import { rewardCoins } from "../../storage/economy.js";
 
 export const name = "minigames";
@@ -12,10 +11,11 @@ const PAYOUT = { rps: 100, coinflip: 80, hilo: 150 };
 const EMO = { rock: "\u{1FAA8}", paper: "\u{1F4C4}", scissors: "\u{2702}\uFE0F", heads: "\u{1FA74}\uFE0F", tails: "\u{1F9E8}" };
 
 export async function execute(message, args) {
-  if (!(await applyCooldown(message, "minigames", "game"))) return;
+  if (!(await applyCooldown(message, "minigames", "ai"))) return;
   const sub = (args[0] || "").toLowerCase();
-  const bal = getUser(message.author.id).balance || 0;
-  const isPlay = ["rps", "coinflip", "hilo"].includes(sub);
+  // Only count quest progress for a valid play, not for a usage error.
+  const VALID = { rps: ["rock", "paper", "scissors"], coinflip: ["heads", "tails"], hilo: ["higher", "lower"] };
+  const isPlay = VALID[sub]?.includes((args[1] || "").toLowerCase());
   if (isPlay) try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "minigames"); if (c) { rewardCoins(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`minigames ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
 
   if (sub === "rps") {

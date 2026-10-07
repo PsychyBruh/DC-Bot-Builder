@@ -25,11 +25,11 @@ function spawn(b) {
   const [r, c] = cells[Math.floor(Math.random() * cells.length)];
   b[r][c] = Math.random() < 0.9 ? 2 : 4;
 }
-function slideRow(row) {
+function slideRow(row, acc) {
   const vals = row.filter((v) => v);
   const out = [];
   for (let i = 0; i < vals.length; i++) {
-    if (vals[i] === vals[i + 1]) { out.push(vals[i] * 2); i++; }
+    if (vals[i] === vals[i + 1]) { out.push(vals[i] * 2); acc.gained += vals[i] * 2; i++; }
     else out.push(vals[i]);
   }
   while (out.length < SIZE) out.push(0);
@@ -37,6 +37,7 @@ function slideRow(row) {
 }
 function move(b, dir) {
   let changed = false;
+  const acc = { gained: 0 }; // score = sum of merged tiles
   const newB = b.map((row) => [...row]);
   const trans = dir === "up" || dir === "down";
   const reverse = dir === "right" || dir === "down";
@@ -44,16 +45,16 @@ function move(b, dir) {
     let col = [];
     for (let j = 0; j < SIZE; j++) col.push(trans ? b[j][i] : b[i][j]);
     if (reverse) col.reverse();
-    const slid = slideRow(col);
+    const slid = slideRow(col, acc);
     if (reverse) slid.reverse();
     for (let j = 0; j < SIZE; j++) {
       const val = trans ? slid[j] : slid[j];
       if (trans) newB[j][i] = val;
       else newB[i][j] = val;
-      if (newB[i][j] !== (trans ? b[j][i] : b[i][j])) changed = true;
+      if (trans ? newB[j][i] !== b[j][i] : newB[i][j] !== b[i][j]) changed = true;
     }
   }
-  return { board: newB, changed };
+  return { board: newB, changed, gained: acc.gained };
 }
 function hasMoves(b) {
   if (emptyCells(b).length) return true;
@@ -108,15 +109,19 @@ export async function handle2048Button(interaction) {
   if (!["g_up", "g_down", "g_left", "g_right"].includes(dir)) return false;
   const game = games.get(`${interaction.channelId}:${interaction.user.id}`);
   if (!game) return interaction.reply({ content: "❌ No game in this channel", ephemeral: true });
-  const { board, changed } = move(game.board, dir.replace("g_", ""));
+  const { board, changed, gained } = move(game.board, dir.replace("g_", ""));
   if (changed) {
     game.board = board;
     spawn(board);
-    game.score += board.flat().reduce((a, v) => a + (v > 0 ? v : 0), 0);
+    game.score += gained;
     game.best = Math.max(game.best, ...board.flat());
   }
   const over = !hasMoves(board);
   const embed = boardEmbed(board, game.score, game.best, over);
+  if (game.best >= 2048 && !game.reached2048) {
+    game.reached2048 = true;
+    embed.setColor(COLORS.success).setTitle("🏆 2048! You win!").setFooter({ text: `Score: ${game.score}  •  Keep going for a higher score!` });
+  }
   if (over) {
     games.delete(`${interaction.channelId}:${interaction.user.id}`);
     return interaction.update({ embeds: [embed], components: controls(true) });

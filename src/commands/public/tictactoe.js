@@ -3,6 +3,7 @@ import { applyCooldown } from "../utils/cooldown.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 
 const games = new Map();
+const IDLE_MS = 5 * 60 * 1000; // an idle game can be replaced after this
 
 function buildBoard(board) {
   const rows = [];
@@ -46,10 +47,15 @@ export async function execute(message, args) {
   if (!opponent || opponent.bot || opponent.id === message.author.id) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Mention a real user")] });
   }
+  const current = games.get(`${message.channelId}`);
+  if (current && Date.now() - current.lastMove < IDLE_MS) {
+    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("❌ A game is already running in this channel. It expires after 5 minutes without a move.")] });
+  }
   const game = {
     board: Array(9).fill(null),
     players: [message.author.id, opponent.id],
     turn: 0,
+    lastMove: Date.now(),
   };
   games.set(`${message.channelId}`, game);
   const embed = baseEmbed(COLORS.info)
@@ -75,6 +81,7 @@ export async function handleTttButton(interaction) {
   }
   if (game.board[idx]) return interaction.reply({ content: "❌ Cell taken", ephemeral: true });
   game.board[idx] = playerIdx === 0 ? "❌" : "⭕";
+  game.lastMove = Date.now();
   game.turn = 1 - game.turn;
   const winner = checkWin(game.board);
   const embed = baseEmbed(winner === "draw" ? COLORS.warning : winner ? COLORS.success : COLORS.info);

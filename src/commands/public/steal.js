@@ -1,7 +1,7 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance, updateUser, userExists } from "../../storage/users.js";
-import { activeBooster, isJailed, jailUser, freeFromJail, luckBonus } from "../../storage/economy.js";
+import { activeBooster, isJailed, jailUser, luckBonus } from "../../storage/economy.js";
 import { claimBounty, totalBounty } from "../../storage/bounties.js";
 
 export const name = "steal";
@@ -9,7 +9,6 @@ export const description = "Attempt to rob another user. High risk, high reward.
 export const usage = "!steal @user";
 export const category = "economy";
 
-const STEAL_CD = 20 * 1000;
 const MAX_STEAL = 500;
 const JAIL_MS = 10 * 60 * 1000;
 
@@ -54,9 +53,11 @@ export async function execute(message, args) {
   if (!success) {
     // Fail: pay fine = 10% of your balance (min 50) and increment fail count
     const bal = getUser(message.author.id).balance || 0;
-    const fine = Math.max(50, Math.floor(bal * 0.10));
+    const fine = Math.min(bal, Math.max(50, Math.floor(bal * 0.10)));
     adjustBalance(message.author.id, -fine);
-    updateUser(message.author.id, (u) => { u.stealFails = (u.stealFails || 0) + 1; return u; });
+    // Thieves too broke to pay the minimum fine take an extra strike instead.
+    const extraStrike = bal < 50 ? 1 : 0;
+    updateUser(message.author.id, (u) => { u.stealFails = (u.stealFails || 0) + 1 + extraStrike; return u; });
     let jailed = false;
     if ((getUser(message.author.id).stealFails || 0) >= 3) {
       jailUser(message.author.id, JAIL_MS);
@@ -72,20 +73,24 @@ export async function execute(message, args) {
   // Success: steal min(targetBal, 50..MAX_STEAL)
   const stolen = Math.min(targetBal, Math.floor(Math.random() * (MAX_STEAL - 50 + 1)) + 50);
   adjustBalance(target.id, -stolen);
-  const stolenWon = rewardCoins(message.author.id, stolen);
+  // Thief gets exactly what the victim lost — boosting it would create coins.
+  adjustBalance(message.author.id, stolen);
+  const stolenWon = stolen;
   updateUser(message.author.id, (u) => { u.stealFails = 0; return u; });
 
   // Claim bounties on target
   const bountyPayout = claimBounty(message.author.id, target.id);
   let bountyLine = "";
   if (bountyPayout > 0) {
-    const bountyWon = rewardCoins(message.author.id, bountyPayout);
-    bountyLine = `\n\n${"\u{1F4B0}"} You also collected a **${bountyWon.toLocaleString()}** bounty on ${target.username}!${bountyWon !== bountyPayout ? `\n**2x coin boost applied!** (base ${bountyPayout.toLocaleString()})` : ""}`;
+    // Bounty is a transfer from whoever posted it — never boosted.
+    adjustBalance(message.author.id, bountyPayout);
+    const bountyWon = bountyPayout;
+    bountyLine = `\n\n${"\u{1F4B0}"} You also collected a **${bountyWon.toLocaleString()}** bounty on ${target.username}!`;
   }
 
   const embed = baseEmbed(COLORS.success)
     .setTitle(`${"\u{1F575}\uFE0F"} Steal Success`)
-    .setDescription(`You robbed ${EMOJIS.coin} **${stolenWon.toLocaleString()}** from **${target.username}**!${stolenWon !== stolen ? `\n**2x coin boost applied!** (base ${stolen.toLocaleString()})` : ""}${bountyLine}`)
+    .setDescription(`You robbed ${EMOJIS.coin} **${stolenWon.toLocaleString()}** from **${target.username}**!${bountyLine}`)
     .setFooter({ text: `\u2694\uFE0F Watch out for revenge! They may place a bounty on you.` });
   await message.reply({ embeds: [embed] });
 }

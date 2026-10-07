@@ -1,7 +1,8 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance } from "../../storage/users.js";
-import { rewardCoins, luckBonus } from "../../storage/economy.js";
+import { luckBonus } from "../../storage/economy.js";
+import { parseBet, advanceGambleQuest } from "../utils/betting.js";
 
 export const name = "slots";
 export const description = "Slot machine. Default bet 50. !slots 100";
@@ -20,14 +21,15 @@ const PAYOUTS = {
 
 export async function execute(message, args) {
   if (!(await applyCooldown(message, "slots", "economy"))) return;
-  let bet = 50;
-  if (args[0] && /^\d+$/.test(args[0])) bet = parseInt(args[0], 10);
+  const parsed = parseBet(args[0], 50);
+  if (parsed.error) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} ${parsed.error}`)] });
+  const bet = parsed.bet;
   const balance = getUser(message.author.id).balance || 0;
   if (balance < bet) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You don't have enough coins. Balance: ${EMOJIS.coin} **${balance.toLocaleString()}**`)] });
   }
   adjustBalance(message.author.id, -bet);
-  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "gamble"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`gamble ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
+  await advanceGambleQuest(message.author.id, message.channel);
 
   const spin = [];
   for (let i = 0; i < 3; i++) spin.push(SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
@@ -42,7 +44,7 @@ export async function execute(message, args) {
   }
   const winnings = bet * multiplier;
   if (winnings > 0) {
-    rewardCoins(message.author.id, winnings);
+    adjustBalance(message.author.id, winnings); // never boosted
     const { updateUser } = await import("../../storage/users.js");
     updateUser(message.author.id, (u) => { u.slotsWon = (u.slotsWon || 0) + 1; });
   }

@@ -2,6 +2,7 @@ import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser, adjustBalance } from "../../storage/users.js";
 import { getLottery, buyTicket, myTickets, draw } from "../../storage/lottery.js";
+import { OWNER_IDS } from "../admin/eco.js";
 
 export const name = "lottery";
 export const description = "Buy a lottery ticket (100c). Hourly draw, jackpot grows!";
@@ -11,12 +12,13 @@ export const category = "games";
 export async function execute(message, args) {
   const sub = (args[0] || "").toLowerCase();
   if (sub === "draw") {
-    if (message.member?.permissions?.has("Administrator")) {
+    // The lottery is global across servers, so only bot owners may force a draw.
+    if (OWNER_IDS.has(message.author.id)) {
       const r = draw(true);
-      const winner = r.winnerId ? `<@${r.winnerId}>` : "nobody (no tickets)";
+      const winner = r.winnerId ? `<@${r.winnerId}>` : r.refunded ? "nobody (need 2+ players — tickets refunded)" : "nobody (no tickets)";
       return message.reply({ embeds: [baseEmbed(COLORS.gold).setTitle(`${"\u{1F381}"} Lottery Draw (forced)`).setDescription(`Jackpot: ${EMOJIS.coin} **${r.pot.toLocaleString()}**\nWinner: ${winner}`)] });
     }
-    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription(`Auto-draw runs hourly. To force one, ask an admin.`)] });
+    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription(`Auto-draw runs hourly. Needs 2+ players or tickets are refunded.`)] });
   }
 
   // default: buy a ticket
@@ -26,7 +28,7 @@ export async function execute(message, args) {
   const cd = await applyCooldown(message, "lottery", "economy");
   if (!cd) return;
   adjustBalance(message.author.id, -lot.ticketPrice);
-  const sold = buyTicket(message.author.id);
+  const sold = buyTicket(message.author.id, message.channelId);
   const mine = myTickets(message.author.id);
   const next = Math.max(0, lot.drawInterval - (Date.now() - lot.lastDraw));
   const embed = baseEmbed(COLORS.gold)

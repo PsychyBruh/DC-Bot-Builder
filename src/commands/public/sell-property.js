@@ -19,8 +19,9 @@ export async function execute(message) {
   const { computePropertyAccrual } = await import("../../storage/economy.js");
   const { owed } = computePropertyAccrual(u);
   let owedLine = "";
-  if (owed > 0) { const ow = rewardCoins(message.author.id, owed); owedLine = `\n\nAlso paid out ${EMOJIS.coin} **${ow.toLocaleString()}** of uncollected income.${ow !== owed ? `\n**2x coin boost applied!** (base ${owed.toLocaleString()})` : ""}`; }
-  const wonRefund = rewardCoins(message.author.id, refund);
+  if (owed > 0) { const ow = rewardCoins(message.author.id, owed); owedLine = `\n\nAlso paid out ${EMOJIS.coin} **${ow.toLocaleString()}** of uncollected income.${ow !== owed ? `\n*Boosted from base ${owed.toLocaleString()}*` : ""}`; }
+  // Refund is never boosted, otherwise buy→sell loops print money.
+  adjustBalance(message.author.id, refund);
   updateUser(message.author.id, (d) => { d.property = null; d.lastPropertyCollect = null; return d; });
-  await message.reply({ embeds: [baseEmbed(COLORS.warning).setTitle(`${prop.emoji} Sold Property`).setDescription(`Sold **${prop.name}** back for ${EMOJIS.coin} **${wonRefund.toLocaleString()}**${wonRefund !== refund ? ` (2x boost, base ${refund.toLocaleString()})` : ` (50% of price)`}.${owedLine}`)] });
+  await message.reply({ embeds: [baseEmbed(COLORS.warning).setTitle(`${prop.emoji} Sold Property`).setDescription(`Sold **${prop.name}** back for ${EMOJIS.coin} **${refund.toLocaleString()}** (50% of price).${owedLine}`)] });
 }

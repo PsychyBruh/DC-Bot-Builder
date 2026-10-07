@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { writeJsonAtomic, readJsonSafe } from "../services/safeWrite.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MARKET_FILE = path.join(__dirname, "..", "..", "data", "market.json");
@@ -11,20 +12,15 @@ const MARKET_FILE = path.join(__dirname, "..", "..", "data", "market.json");
 let state = { price: 100, lastUpdate: 0, history: [] };
 
 function load() {
-  try {
-    if (fs.existsSync(MARKET_FILE)) {
-      state = JSON.parse(fs.readFileSync(MARKET_FILE, "utf-8"));
-    }
-  } catch (err) {
-    console.error("Failed to load market:", err.message);
-  }
+  const data = readJsonSafe(MARKET_FILE, null);
+  if (data && typeof data === "object") state = { ...state, ...data, history: Array.isArray(data.history) ? data.history : [] };
 }
 
 function save() {
   try {
     const dir = path.dirname(MARKET_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(MARKET_FILE, JSON.stringify(state, null, 2), "utf-8");
+    writeJsonAtomic(MARKET_FILE, state);
   } catch (err) {
     console.error("Failed to save market:", err.message);
   }
@@ -68,13 +64,4 @@ export function getPrice() {
 export function getHistory() {
   tickMarket();
   return state.history;
-}
-
-export function applyMarketBuy(userId, shares) {
-  // No state mutation needed; money math happens in users.js
-  return shares * getPrice();
-}
-
-export function applyMarketSell(userId, shares) {
-  return shares * getPrice();
 }

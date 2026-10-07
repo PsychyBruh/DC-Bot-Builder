@@ -58,34 +58,54 @@ export const description = "5x5 minesweeper with 5 mines";
 export const usage = "!minesweeper";
 export const category = "games";
 
+const GAME_TTL_MS = 15 * 60 * 1000;
+
+function pruneGames() {
+  const now = Date.now();
+  for (const [id, g] of games) if (now - g.startedAt > GAME_TTL_MS) games.delete(id);
+}
+
+function placeMines(size, count, safeIdx) {
+  // Mines are placed on the first click, never on that cell, so the first click is always safe.
+  const positions = new Set();
+  while (positions.size < count) {
+    const p = Math.floor(Math.random() * (size * size));
+    if (p !== safeIdx) positions.add(p);
+  }
+  return positions;
+}
+
 export function stopSession(channelId, userId) {
-  return games.delete(`${channelId}:${userId}`);
+  let stopped = false;
+  for (const [id, g] of games) {
+    if (g.channelId === channelId && g.owner === userId) { games.delete(id); stopped = true; }
+  }
+  return stopped;
 }
 
 export async function execute(message) {
   if (!(await applyCooldown(message, "minesweeper", "heavy"))) return;
+  pruneGames();
   const size = 5;
-  const minesCount = 5;
-  const positions = new Set();
-  while (positions.size < minesCount) {
-    positions.add(Math.floor(Math.random() * (size * size)));
-  }
   const revealed = {};
-  const game = { revealed, mines: positions, size, over: false, won: false };
-  games.set(`${message.channelId}:${message.author.id}`, game);
+  const game = { revealed, mines: null, minesCount: 5, size, over: false, won: false, owner: message.author.id, channelId: message.channelId, startedAt: Date.now() };
   const embed = baseEmbed(COLORS.info)
     .setTitle("💣 Minesweeper (5x5)")
-    .setDescription("Click cells to reveal. Avoid the mines!\n\nMines: **5**");
-  await message.reply({ embeds: [embed], components: buildGrid(revealed, positions, size) });
+    .setDescription("Click cells to reveal. Avoid the mines!\n\nMines: **5** — your first click is always safe.");
+  const sent = await message.reply({ embeds: [embed], components: buildGrid(revealed, null, size) });
+  // Keyed by board message, so each board only controls its own game.
+  games.set(sent.id, game);
 }
 
 export async function handleMinesweeperButton(interaction) {
   if (!interaction.customId.startsWith("ms_")) return false;
   const [_, idxStr] = interaction.customId.split("_");
   const idx = parseInt(idxStr, 10);
-  const game = games.get(`${interaction.channelId}:${interaction.user.id}`);
-  if (!game) return interaction.reply({ content: "❌ Game not found or not yours", ephemeral: true });
+  const game = games.get(interaction.message.id);
+  if (!game) return interaction.reply({ content: "❌ This game has expired", ephemeral: true });
+  if (game.owner !== interaction.user.id) return interaction.reply({ content: "❌ Not your game — start your own with `!minesweeper`", ephemeral: true });
   if (game.over) return interaction.reply({ content: "❌ Game over", ephemeral: true });
+  if (!game.mines) game.mines = placeMines(game.size, game.minesCount, idx);
   if (game.mines.has(idx)) {
     game.over = true;
     game.won = false;
@@ -93,25 +113,25 @@ export async function handleMinesweeperButton(interaction) {
     const embed = baseEmbed(COLORS.danger)
       .setTitle("💥 BOOM!")
       .setDescription("You hit a mine. Game over.");
-    games.delete(`${interaction.channelId}:${interaction.user.id}`);
+    games.delete(interaction.message.id);
     return interaction.update({ embeds: [embed], components: buildGrid(game.revealed, game.mines, game.size) });
   }
   reveal(game.revealed, game.mines, idx, game.size);
-  const unrevealed = Object.keys(game.revealed).filter((k) => game.revealed[k] !== undefined && game.revealed[k] !== -1).length;
+  const revealedCount = Object.keys(game.revealed).filter((k) => game.revealed[k] !== undefined && game.revealed[k] !== -1).length;
   const safe = game.size * game.size - game.mines.size;
-  if (unrevealed === safe) {
+  if (revealedCount === safe) {
     game.over = true;
     game.won = true;
     for (let i = 0; i < game.size * game.size; i++) game.revealed[i] = game.revealed[i] !== undefined ? game.revealed[i] : 0;
     const embed = baseEmbed(COLORS.success)
       .setTitle("🏆 You Won!")
       .setDescription("Cleared the board!");
-    games.delete(`${interaction.channelId}:${interaction.user.id}`);
+    games.delete(interaction.message.id);
     return interaction.update({ embeds: [embed], components: buildGrid(game.revealed, game.mines, game.size) });
   }
   const embed = baseEmbed(COLORS.info)
     .setTitle("💣 Minesweeper")
-    .setDescription(`Revealed: **${unrevealed}/${safe}**`);
+    .setDescription(`Revealed: **${revealedCount}/${safe}**`);
   await interaction.update({ embeds: [embed], components: buildGrid(game.revealed, game.mines, game.size) });
   return true;
 }

@@ -30,7 +30,7 @@ export async function execute(message) {
   const hours = (since / 3600000).toFixed(2);
   const embed = baseEmbed(COLORS.success)
     .setTitle(`${prop.emoji} Property income collected`)
-    .setDescription(`Collected ${EMOJIS.coin} **${won.toLocaleString()}** from your **${prop.name}**.${won !== owed ? `\n**2x coin boost applied!** (base ${owed.toLocaleString()})` : ""}\n\nEarned over **${hours}h** at ${prop.earnRate}/h${capped ? ` \u2014 capped at 12h; collect more often to keep accruing` : ""}.`)
+    .setDescription(`Collected ${EMOJIS.coin} **${won.toLocaleString()}** from your **${prop.name}**.${won !== owed ? `\n*Boosted from base ${owed.toLocaleString()}*` : ""}\n\nEarned over **${hours}h** at ${prop.earnRate}/h${capped ? ` \u2014 capped at 12h; collect more often to keep accruing` : ""}.`)
     .setFooter({ text: `Rate: ${prop.earnRate.toLocaleString()}/h | Use !collect again any time` });
   await message.reply({ embeds: [embed] });
 }

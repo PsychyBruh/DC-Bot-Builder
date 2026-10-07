@@ -1,6 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { ITEMS, setBooster, removeItem, activeBooster } from "../../storage/economy.js";
-import { updateUser, getUser, adjustBalance } from "../../storage/users.js";
+import { updateUser, getUser } from "../../storage/users.js";
 
 export const name = "use";
 export const description = "Use an item from your inventory. !use <item>";
@@ -16,12 +16,14 @@ export async function execute(message, args) {
   if (!u.inventory?.[item.id]) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} You don't own **${item.name}**.`)] });
 
   if (item.type === "booster") {
+    const already = activeBooster(message.author.id, item.booster);
     removeItem(message.author.id, item.id, 1);
     setBooster(message.author.id, item.booster, item.duration);
+    if (already) {
+      const left = activeBooster(message.author.id, item.booster) - Date.now();
+      return message.reply({ embeds: [baseEmbed(COLORS.success).setTitle(`${item.emoji} Extended`).setDescription(`**${item.name}** was already active — extended by ${fmtDur(item.duration)} (${fmtDur(left)} left).`)] });
+    }
     return message.reply({ embeds: [baseEmbed(COLORS.success).setTitle(`${item.emoji} Activated`).setDescription(`**${item.name}** active for the next ${fmtDur(item.duration)}.\n${item.desc}`)] });
-  }
-  if (item.type === "consumable" && item.booster) {
-    // bribe_token uses no booster slot; handled by !bail
   }
   if (item.id === "bribe_token") {
     removeItem(message.author.id, item.id, 1);

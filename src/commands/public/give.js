@@ -50,6 +50,13 @@ export async function execute(message, args) {
   adjustBalance(target.id, actual);
   updateUser(message.author.id, (d) => {
     d.giveUsed = d.giveUsed || {};
+    // Drop allowance entries from previous days so this map doesn't grow forever.
+    for (const k of Object.keys(d.giveUsed)) {
+      if (k.endsWith("_date") && d.giveUsed[k] !== today) {
+        delete d.giveUsed[k];
+        delete d.giveUsed[k.slice(0, -5)];
+      }
+    }
     d.giveUsed[key] = (d.giveUsed[key] || 0) + amount;
     d.giveUsed[dateKey] = today;
     return d;

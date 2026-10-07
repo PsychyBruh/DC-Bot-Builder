@@ -16,12 +16,13 @@ export async function execute(message) {
   if (bal < BRIBE_COST) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Bribe costs ${EMOJIS.coin} **${BRIBE_COST}** (you have ${bal.toLocaleString()}).`)] });
   adjustBalance(message.author.id, -BRIBE_COST);
   updateUser(message.author.id, (u) => {
-    u.stealImmune = Date.now() + IMMUNITY_MS;
+    // Stack onto existing immunity instead of resetting it.
+    u.stealImmune = Math.max(u.stealImmune || 0, Date.now()) + IMMUNITY_MS;
     return u;
   });
   const embed = baseEmbed(COLORS.success)
     .setTitle(`${"\u{1F4B9}"} Bribe Paid`)
-    .setDescription(`You're immune to \`!steal\` for the next 24 hours.`)
-    .setFooter({ text: "Expires in 24h" });
+    .setDescription(`+24h immunity to \`!steal\` (stacks with any time left).`)
+    .setFooter({ text: `Immune until ${new Date(getUser(message.author.id).stealImmune).toUTCString()}` });
   await message.reply({ embeds: [embed] });
 }

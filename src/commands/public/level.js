@@ -22,7 +22,7 @@ export async function execute(message, args) {
     .setThumbnail(target.displayAvatarURL({ dynamic: true, size: 256 }))
     .addFields(
       { name: "Level", value: `${level}`, inline: true },
-      { name: "XP", value: `${xp} / ${needed}`, inline: true },
+      { name: "XP", value: `${xpIntoLevel} / ${needed}`, inline: true },
       { name: "Progress", value: `\`${bar}\` ${pct}%`, inline: false },
     )
     .setFooter({ text: "Earn XP by chatting in the server" });

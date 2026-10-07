@@ -14,7 +14,7 @@ export async function execute(message) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ You already have an active game. Use `!guessend` to abort.")] });
   }
   const target = Math.floor(Math.random() * 100) + 1;
-  games.set(message.author.id, { target, tries: 6 });
+  games.set(message.author.id, { target, tries: 6, channelId: message.channelId });
   const embed = baseEmbed(COLORS.cyan)
     .setTitle("🔢 Number Guess")
     .setDescription("I'm thinking of a number between **1** and **100**.\n\nYou have **6 tries**. Reply with your guess!")
@@ -37,13 +37,14 @@ export function stopSession(channelId, userId) {
 export async function handleGuessMessage(message) {
   if (!/^\d+$/.test(message.content)) return false;
   const game = games.get(message.author.id);
-  if (!game) return false;
+  // Only numbers typed in the channel where the game was started count as guesses.
+  if (!game || game.channelId !== message.channelId) return false;
   const guess = parseInt(message.content, 10);
   if (guess < 1 || guess > 100) return false;
   game.tries--;
   if (guess === game.target) {
     games.delete(message.author.id);
-    const triesUsed = 7 - game.tries;
+    const triesUsed = 6 - game.tries;
     const embed = baseEmbed(COLORS.success)
       .setTitle("✅ Correct!")
       .setDescription(`**${guess}** is the number!\n\nSolved with **${triesUsed}** tries.`)

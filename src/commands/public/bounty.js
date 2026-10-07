@@ -34,7 +34,7 @@ export async function execute(message, args) {
     const embed = baseEmbed(COLORS.danger)
       .setTitle(`${"\u{1F3AF}"} Bounty Placed`)
       .setDescription(`${EMOJIS.coin} **${amount.toLocaleString()}** posted on **${target.username}**.\n\nTotal bounty on ${target.username}: ${EMOJIS.coin} **${total.toLocaleString()}**`)
-      .setFooter({ text: "The next person to !steal from them successfully will collect it." });
+      .setFooter({ text: "The next person to !steal from them successfully collects it. Refunded if unclaimed after 7 days." });
     return message.reply({ embeds: [embed] });
   }
 

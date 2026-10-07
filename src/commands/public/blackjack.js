@@ -1,15 +1,24 @@
 import { baseEmbed, COLORS } from "../utils/embeds.js";
+import { parseBet, advanceGambleQuest } from "../utils/betting.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
-import { getUser, adjustBalance, updateUser } from "../../storage/users.js";
-import { rewardCoins } from "../../storage/economy.js";
+import { getUser, adjustBalance } from "../../storage/users.js";
 
 const games = new Map();
 const DECK = [];
 for (const suit of ["♠️", "♥️", "♦️", "♣️"]) {
   for (let i = 1; i <= 13; i++) DECK.push({ value: Math.min(i, 10), label: i === 1 ? "A" : i === 11 ? "J" : i === 12 ? "Q" : i === 13 ? "K" : i, suit });
 }
-function shuffle(d) { return [...d].sort(() => Math.random() - 0.5); }
+// Fisher-Yates — sort(() => Math.random() - 0.5) is biased.
+function shuffle(d) {
+  const a = [...d];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+const GAME_TTL_MS = 5 * 60 * 1000; // an abandoned hand stops blocking new games after this
 function handVal(hand) {
   let sum = 0, aces = 0;
   for (const c of hand) { if (c.value === 1) aces++; else sum += c.value; }
@@ -25,15 +34,22 @@ export const category = "games";
 
 export async function execute(message, args) {
   if (!(await applyCooldown(message, "blackjack", "economy"))) return;
-  const bet = parseInt(args[0], 10) || 100;
+  const parsed = parseBet(args[0], 100);
+  if (parsed.error) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`❌ ${parsed.error}`)] });
+  const bet = parsed.bet;
+  const key = `${message.channelId}:${message.author.id}`;
+  const existing = games.get(key);
+  if (existing && !existing.done && Date.now() - existing.startedAt < GAME_TTL_MS) {
+    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription(`❌ Finish your current hand first.`)] });
+  }
   const user = getUser(message.author.id);
   const bal = user.balance || 0;
   if (bal < bet) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`❌ Not enough coins. You have ${bal}.`)] });
   adjustBalance(message.author.id, -bet);
-  const game = { deck: shuffle(DECK), player: [], dealer: [], bet, doubled: false, done: false };
+  const game = { deck: shuffle(DECK), player: [], dealer: [], bet, doubled: false, done: false, startedAt: Date.now() };
   game.player.push(game.deck.pop(), game.deck.pop());
   game.dealer.push(game.deck.pop(), game.deck.pop());
-  games.set(`${message.channelId}:${message.author.id}`, game);
+  games.set(key, game);
   // Natural blackjack pays 3:2 (bet × 2.5 = bet back + 1.5× profit). Auto-stand.
   const playerNatural = handVal(game.player) === 21;
   if (playerNatural) {
@@ -60,11 +76,9 @@ async function endGameAtStart(message, game) {
   else if (d > 21 || p > d) { outcome = "blackjack"; payout = Math.floor(game.bet * 2.5); } // 3:2 profit
   else if (d === p) { outcome = "push"; payout = game.bet; } // tie
   else { outcome = "lose"; payout = 0; }
-  if (payout && outcome === "blackjack") payout = rewardCoins(message.author.id, payout);
-  else if (payout && outcome === "push") adjustBalance(message.author.id, payout);
-  if (outcome === "blackjack") updateUser(message.author.id, (u) => { u.coinsWon = (u.coinsWon || 0) + (payout - game.bet); });
-  else if (outcome === "bust" || outcome === "lose") updateUser(message.author.id, (u) => { u.coinsLost = (u.coinsLost || 0) + game.bet; });
-  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "gamble"); if (c) { rewardCoins(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`gamble ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
+  // Gambling payouts are never boosted.
+  if (payout) adjustBalance(message.author.id, payout);
+  await advanceGambleQuest(message.author.id, message.channel);
   const color = outcome === "blackjack" ? COLORS.success : outcome === "lose" || outcome === "bust" ? COLORS.danger : COLORS.warning;
   const titles = { blackjack: "🃑 Natural Blackjack!", lose: "😢 You lose!", bust: "💥 Bust!", push: "🤝 Push!" };
   const changeText = outcome === "blackjack" ? `+${payout - game.bet}` : outcome === "push" ? "±0" : `-${game.bet}`;
@@ -89,19 +103,17 @@ async function endGame(interaction, game) {
   let payout = 0;
   if (outcome === "win") payout = game.bet * 2;
   else if (outcome === "push") payout = game.bet;
-  if (payout && outcome === "win") payout = rewardCoins(interaction.user.id, payout);
-  else if (payout && outcome === "push") adjustBalance(interaction.user.id, payout);
+  if (payout) adjustBalance(interaction.user.id, payout);
   const profit = payout - game.bet;
-  if (profit > 0) updateUser(interaction.user.id, (u) => { u.coinsWon = (u.coinsWon || 0) + profit; });
-  else updateUser(interaction.user.id, (u) => { u.coinsLost = (u.coinsLost || 0) + Math.abs(profit); });
   const color = outcome === "win" ? COLORS.success : outcome === "lose" || outcome === "bust" ? COLORS.danger : COLORS.warning;
   const titles = { win: "🎉 You win!", lose: "😢 You lose!", bust: "💥 Bust!", push: "🤝 Push!" };
   const changeText = outcome === "win" ? `+${profit}` : outcome === "push" ? "±0" : `-${game.bet}`;
   const embed = baseEmbed(color)
     .setTitle(titles[outcome])
     .setDescription(`**Your hand:** ${game.player.map(cardStr).join(" ")} = **${p}**\n**Dealer:** ${game.dealer.map(cardStr).join(" ")} = **${d}**\n\n${changeText} coins`);
-  await interaction.update({ embeds: [embed], components: [] });
   games.delete(`${interaction.channelId}:${interaction.user.id}`);
+  await interaction.update({ embeds: [embed], components: [] });
+  await advanceGambleQuest(interaction.user.id, interaction.channel);
 }
 
 export async function handleBlackjackButton(interaction) {

@@ -1,5 +1,6 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
-import { ITEMS, ITEM_MAP, addItem } from "../../storage/economy.js";
+import { applyCooldown } from "../utils/cooldown.js";
+import { ITEMS, addItem } from "../../storage/economy.js";
 import { getUser, adjustBalance } from "../../storage/users.js";
 
 export const name = "buy";
@@ -8,6 +9,7 @@ export const usage = "!buy <item>";
 export const category = "economy";
 
 export async function execute(message, args) {
+  if (!(await applyCooldown(message, "buy", "economy"))) return;
   const query = args.join(" ").toLowerCase().trim();
   if (!query) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Usage: \`!buy <item>\` (see \`!shop\`)`)] });
   const item = ITEMS.find((i) => i.name.toLowerCase() === query || i.id === query);

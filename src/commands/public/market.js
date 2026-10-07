@@ -9,8 +9,9 @@ export const category = "economy";
 export async function execute(message) {
   const price = getPrice();
   const history = getHistory();
-  const lines = history.slice(-10).map((h, i) => {
-    const prev = history[i - 1]?.price || h.price;
+  const start = Math.max(0, history.length - 10);
+  const lines = history.slice(start).map((h, i) => {
+    const prev = history[start + i - 1]?.price ?? h.price;
     const diff = h.price - prev;
     const arrow = diff > 0 ? "\u{1F4C8}" : diff < 0 ? "\u{1F4C9}" : "\u{1F80B}";
     return `${arrow} ${EMOJIS.coin} **${h.price.toFixed(2)}**`;

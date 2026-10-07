@@ -1,8 +1,11 @@
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { WORDS } from "./wordle.js";
+import { rewardCoins } from "../../storage/economy.js";
 
 const games = new Map();
+const CHAIN_GOAL = 10;
+const CHAIN_REWARD = 300;
 const WORD_SET = new Set(WORDS.map((w) => w.toUpperCase()));
 
 export function stopSession(channelId, userId) {
@@ -10,18 +13,18 @@ export function stopSession(channelId, userId) {
 }
 
 export const name = "word-chain";
-export const description = "Word chain game — type a word starting with the last letter";
+export const description = `Word chain — chain ${CHAIN_GOAL} five-letter words for a reward`;
 export const usage = "!word-chain";
 export const category = "games";
 
 export async function execute(message) {
   if (!(await applyCooldown(message, "word-chain", "heavy"))) return;
   const start = WORDS[Math.floor(Math.random() * WORDS.length)].toUpperCase();
-  const game = { current: start, used: new Set([start]), turn: 0 };
+  const game = { current: start, used: new Set([start]) };
   games.set(`${message.channelId}:${message.author.id}`, game);
   const embed = baseEmbed(COLORS.cyan)
     .setTitle("🔗 Word Chain")
-    .setDescription(`Starting word: **${start}**\n\nType a **5-letter word** that starts with **${start.slice(-1)}**.\nTurn: **${message.author.username}**`);
+    .setDescription(`Starting word: **${start}**\n\nType a **5-letter word** that starts with **${start.slice(-1)}**.\nChain **${CHAIN_GOAL}** words to win ${CHAIN_REWARD} coins.`);
   await message.reply({ embeds: [embed] });
 }
 
@@ -47,9 +50,15 @@ export async function handleWordChainGuess(message, word) {
   }
   game.used.add(guess);
   game.current = guess;
+  if (game.used.size - 1 >= CHAIN_GOAL) {
+    games.delete(`${message.channelId}:${message.author.id}`);
+    const won = rewardCoins(message.author.id, CHAIN_REWARD);
+    await message.reply({ embeds: [baseEmbed(COLORS.success).setTitle("🔗 Chain complete!").setDescription(`**${guess}** — ${CHAIN_GOAL} words chained! +${won.toLocaleString()} coins.`)] });
+    return true;
+  }
   const embed = baseEmbed(COLORS.cyan)
     .setTitle("🔗 Word Chain")
-    .setDescription(`**${guess}**\n\nNext word starts with **${guess.slice(-1)}**.\nTurn: **${message.author.username}**`);
+    .setDescription(`**${guess}**\n\nNext word starts with **${guess.slice(-1)}**.\nChain: **${game.used.size - 1}/${CHAIN_GOAL}**`);
   await message.reply({ embeds: [embed] });
   return true;
 }

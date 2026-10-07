@@ -1,38 +1,45 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { writeJsonAtomic, readJsonSafe } from "../services/safeWrite.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = path.join(__dirname, "..", "..", "data", "cooldowns.json");
+const SAVE_DEBOUNCE_MS = 5000;
 
 const cooldowns = new Map();
+let saveTimer = null;
 
 export function loadCooldowns() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      const data = JSON.parse(raw);
-      for (const [key, expires] of Object.entries(data)) {
-        cooldowns.set(key, expires);
-      }
-    }
-  } catch (err) {
-    console.error("Failed to load cooldowns:", err.message);
+  const data = readJsonSafe(DATA_FILE, {});
+  const now = Date.now();
+  for (const [key, expires] of Object.entries(data || {})) {
+    // Prune expired entries on load
+    if (typeof expires === "number" && expires > now) cooldowns.set(key, expires);
   }
 }
 
-function save() {
+function saveNow() {
   try {
     const obj = {};
+    const now = Date.now();
     for (const [key, expires] of cooldowns) {
-      if (expires > Date.now()) obj[key] = expires;
+      if (expires > now) obj[key] = expires;
+      else cooldowns.delete(key);
     }
     const dir = path.dirname(DATA_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), "utf-8");
+    writeJsonAtomic(DATA_FILE, obj);
   } catch (err) {
     console.error("Failed to save cooldowns:", err.message);
   }
+}
+
+// Debounced: at most one disk write every SAVE_DEBOUNCE_MS instead of one per command.
+function save() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => { saveTimer = null; saveNow(); }, SAVE_DEBOUNCE_MS);
+  saveTimer.unref?.();
 }
 
 export function checkCooldown(userId, command, durationMs) {
@@ -49,7 +56,8 @@ export function checkCooldown(userId, command, durationMs) {
 
 export function clearAllCooldowns() {
   cooldowns.clear();
-  save();
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  saveNow();
 }
 
 export function formatCooldown(ms) {

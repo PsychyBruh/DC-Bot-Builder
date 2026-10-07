@@ -10,7 +10,7 @@ export const category = "games";
 const TIER = 12 * 60 * 60 * 1000; // 12h
 
 export async function execute(message) {
-  if (!(await applyCooldown(message, "lucky", "rep"))) return; // rep tier = 24h, but we override below
+  if (!(await applyCooldown(message, "lucky", "half_day"))) return;
   // Use a custom per-user cooldown stored as 12h
   const { getUser, updateUser } = await import("../../storage/users.js");
   const u = getUser(message.author.id);

@@ -1,28 +1,24 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { updateUser, getUser, adjustBalance } from "./users.js";
+import { updateUser, adjustBalance } from "./users.js";
+import { writeJsonAtomic, readJsonSafe } from "../services/safeWrite.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BOUNTY_FILE = path.join(__dirname, "..", "..", "data", "bounties.json");
 
 let bounties = {}; // { targetId: [ { from, amount, at } ] }
+const BOUNTY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function load() {
-  try {
-    if (fs.existsSync(BOUNTY_FILE)) {
-      bounties = JSON.parse(fs.readFileSync(BOUNTY_FILE, "utf-8"));
-    }
-  } catch (err) {
-    console.error("Failed to load bounties:", err.message);
-  }
+  bounties = readJsonSafe(BOUNTY_FILE, {}) || {};
 }
 
 function save() {
   try {
     const dir = path.dirname(BOUNTY_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(BOUNTY_FILE, JSON.stringify(bounties, null, 2), "utf-8");
+    writeJsonAtomic(BOUNTY_FILE, bounties);
   } catch (err) {
     console.error("Failed to save bounties:", err.message);
   }
@@ -30,7 +26,28 @@ function save() {
 
 load();
 
+// Refund bounties nobody claimed within BOUNTY_TTL_MS. Called lazily on every access.
+function expire() {
+  const now = Date.now();
+  let changed = false;
+  for (const [targetId, list] of Object.entries(bounties)) {
+    const keep = [];
+    for (const b of list) {
+      if (now - b.at > BOUNTY_TTL_MS) { adjustBalance(b.from, b.amount); changed = true; }
+      else keep.push(b);
+    }
+    if (keep.length) bounties[targetId] = keep;
+    else delete bounties[targetId];
+    if (keep.length !== list.length) {
+      const total = keep.reduce((s, b) => s + b.amount, 0);
+      updateUser(targetId, (u) => { u.bountyOnMe = total; return u; });
+    }
+  }
+  if (changed) save();
+}
+
 export function placeBounty(fromId, targetId, amount) {
+  expire();
   if (!bounties[targetId]) bounties[targetId] = [];
   bounties[targetId].push({ from: fromId, amount, at: Date.now() });
   save();
@@ -43,14 +60,17 @@ export function placeBounty(fromId, targetId, amount) {
 }
 
 export function totalBounty(targetId) {
+  expire();
   return (bounties[targetId] || []).reduce((s, b) => s + b.amount, 0);
 }
 
 export function getBounty(targetId) {
+  expire();
   return bounties[targetId] || [];
 }
 
 export function claimBounty(claimerId, targetId) {
+  expire();
   const list = bounties[targetId] || [];
   if (!list.length) return 0;
   const payout = list.reduce((s, b) => s + b.amount, 0);

@@ -15,7 +15,7 @@ export async function execute(message) {
   const embed = baseEmbed(COLORS.primary)
     .setTitle("✂️ Rock Paper Scissors")
     .setDescription("Choose your move!")
-    .setFooter({ text: "React or click a button" });
+    .setFooter({ text: "Click a button to play" });
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`rps_rock_${message.author.id}`).setLabel("🪨 Rock").setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`rps_paper_${message.author.id}`).setLabel("📄 Paper").setStyle(ButtonStyle.Primary),

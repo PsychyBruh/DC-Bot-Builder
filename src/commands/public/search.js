@@ -1,5 +1,5 @@
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
-import { applyCooldown } from "../utils/cooldown.js";
+import { applyCooldown, COOLDOWNS } from "../utils/cooldown.js";
 import { getUser, adjustBalance } from "../../storage/users.js";
 import { addItem, ITEM_MAP, rewardCoins } from "../../storage/economy.js";
 
@@ -63,7 +63,7 @@ export async function execute(message) {
 }
 
 async function reply(message, color, desc) {
-  await message.reply({ embeds: [baseEmbed(color).setTitle(`${"\u{1F50D}"} Search`).setDescription(desc).setFooter({ text: "Cooldown: 1 min | Try !search again later" })] });
+  await message.reply({ embeds: [baseEmbed(color).setTitle(`${"\u{1F50D}"} Search`).setDescription(desc).setFooter({ text: `Cooldown: ${COOLDOWNS.pity / 60000} min | Try !search again later` })] });
 }
 
 export async function notifyQuestComplete(message, q) {

@@ -32,7 +32,7 @@ const CORRECT_REWARD = 1250;
 const TRY_REWARD = 25;
 
 export async function execute(message) {
-  if (!(await applyCooldown(message, "trivia", "game"))) return;
+  if (!(await applyCooldown(message, "trivia", "ai"))) return;
   const pick = TRIVIA[Math.floor(Math.random() * TRIVIA.length)];
   const shuffled = [...pick.opts].sort(() => Math.random() - 0.5);
 
@@ -67,9 +67,10 @@ export async function execute(message) {
       chosen = shuffled[raw.toUpperCase().charCodeAt(0) - 65];
       correct = pick.a.some((ans) => chosen.toLowerCase().includes(ans));
     } else {
-      correct = pick.a.some((ans) => lower === ans || lower.includes(ans) || ans.includes(lower));
+      // Typed answers must match exactly — substring matching let "a" or "the" count as correct.
+      correct = pick.a.some((ans) => lower === ans);
       if (!correct) {
-        const matchedOpt = shuffled.find((o) => o.toLowerCase() === lower || o.toLowerCase().includes(lower) || lower.includes(o.toLowerCase()));
+        const matchedOpt = shuffled.find((o) => o.toLowerCase() === lower);
         if (matchedOpt) {
           chosen = matchedOpt;
           correct = pick.a.some((ans) => matchedOpt.toLowerCase().includes(ans));
@@ -82,7 +83,7 @@ export async function execute(message) {
       updateUser(message.author.id, (u) => { u.triviaScore = (u.triviaScore || 0) + 1; });
       const won = rewardCoins(message.author.id, CORRECT_REWARD);
       try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "trivia"); if (c) { rewardCoins(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`trivia ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
-      m.reply({ embeds: [baseEmbed(COLORS.success).setTitle("\u{2705} Correct!").setDescription(`Right answer! +${won.toLocaleString()} ${EMOJIS.coin}${won !== CORRECT_REWARD ? ` (**2x coin boost!** base ${CORRECT_REWARD.toLocaleString()})` : ""}`)] });
+      m.reply({ embeds: [baseEmbed(COLORS.success).setTitle("\u{2705} Correct!").setDescription(`Right answer! +${won.toLocaleString()} ${EMOJIS.coin}${won !== CORRECT_REWARD ? ` (boosted from ${CORRECT_REWARD.toLocaleString()})` : ""}`)] });
     } else {
       const won = rewardCoins(message.author.id, TRY_REWARD);
       const correctOpt = shuffled.find((o) => pick.a.some((a) => o.toLowerCase().includes(a) || a.includes(o.toLowerCase()))) || pick.opts.find((o) => pick.a.some((a) => o.toLowerCase().includes(a) || a.includes(o.toLowerCase()))) || pick.a[0];

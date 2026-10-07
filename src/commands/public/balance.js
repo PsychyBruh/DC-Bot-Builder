@@ -15,7 +15,8 @@ export async function execute(message) {
   const shareValue = Math.floor(shares * getPrice());
   const job = u.job ? JOBS.find((j) => j.id === u.job) : null;
   const prop = u.property ? PROPERTY_MAP[u.property] : null;
-  const netWorth = (u.balance || 0) + shareValue + (prop ? prop.price : 0);
+  // Property counts at its 50% resale value, same as the leaderboards.
+  const netWorth = (u.balance || 0) + shareValue + (prop ? Math.floor(prop.price * 0.5) : 0);
 
   const lines = [`${EMOJIS.coin} **Wallet:** ${(u.balance || 0).toLocaleString()} coins`];
   if (job) lines.push(`${job.emoji} **Job:** ${job.name} (${EMOJIS.coin} ${job.base}/shift)`);

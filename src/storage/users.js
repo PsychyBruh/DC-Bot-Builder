@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { writeJsonAtomic, readJsonSafe } from "../services/safeWrite.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = path.join(__dirname, "..", "..", "data", "users.json");
@@ -66,18 +67,13 @@ function ensureDefaults(data) {
 }
 
 export function loadUsers() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      const data = JSON.parse(raw);
-      for (const [uid, udata] of Object.entries(data)) {
-        users.set(uid, ensureDefaults(udata));
-      }
-      console.log(`Loaded data for ${users.size} user(s)`);
-    }
-  } catch (err) {
-    console.error("Failed to load users:", err.message);
+  // readJsonSafe backs up a corrupt file instead of letting the next save silently wipe it.
+  const data = readJsonSafe(DATA_FILE, {});
+  if (!data || typeof data !== "object") return;
+  for (const [uid, udata] of Object.entries(data)) {
+    if (udata && typeof udata === "object") users.set(uid, ensureDefaults(udata));
   }
+  console.log(`Loaded data for ${users.size} user(s)`);
 }
 
 function save() {
@@ -86,7 +82,7 @@ function save() {
     for (const [uid, udata] of users) obj[uid] = udata;
     const dir = path.dirname(DATA_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), "utf-8");
+    writeJsonAtomic(DATA_FILE, obj);
   } catch (err) {
     console.error("Failed to save users:", err.message);
   }

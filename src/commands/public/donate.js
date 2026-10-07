@@ -8,6 +8,8 @@ export const description = "Donate coins to someone poorer than you (gain karma)
 export const usage = "!donate @user <amount>";
 export const category = "economy";
 
+const KARMA_DAILY_CAP = 5;
+
 export async function execute(message, args) {
   if (!(await applyCooldown(message, "donate", "social"))) return;
   const target = message.mentions.users.first();
@@ -23,8 +25,16 @@ export async function execute(message, args) {
 
   adjustBalance(message.author.id, -amount);
   adjustBalance(target.id, amount);
-  const karmaGain = Math.max(1, Math.floor(amount / 100));
-  updateUser(message.author.id, (u) => { u.karma = (u.karma || 0) + karmaGain; return u; });
+  // Karma is capped per day so one big donation to an alt can't unlock every milestone at once.
+  const today = new Date().toISOString().slice(0, 10);
+  const earnedToday = me.karmaDay === today ? (me.karmaToday || 0) : 0;
+  const karmaGain = Math.max(0, Math.min(Math.floor(amount / 100), KARMA_DAILY_CAP - earnedToday));
+  updateUser(message.author.id, (u) => {
+    u.karma = (u.karma || 0) + karmaGain;
+    u.karmaDay = today;
+    u.karmaToday = earnedToday + karmaGain;
+    return u;
+  });
 
   // One-time milestone rewards (coins + free Golden Trophy at the top tiers)
   let milestoneLine = "";
@@ -45,7 +55,7 @@ export async function execute(message, args) {
 
   const embed = baseEmbed(COLORS.success)
     .setTitle(`${EMOJIS.heart} Donated`)
-    .setDescription(`Sent ${EMOJIS.coin} **${amount.toLocaleString()}** to **${target.username}**.\n\n${EMOJIS.star} Gained **${karmaGain}** karma${milestoneLine}`)
+    .setDescription(`Sent ${EMOJIS.coin} **${amount.toLocaleString()}** to **${target.username}**.\n\n${EMOJIS.star} Gained **${karmaGain}** karma${karmaGain === 0 ? ` (daily cap of ${KARMA_DAILY_CAP} reached)` : ""}${milestoneLine}`)
     .setFooter({ text: `Karma: ${newKarma} | +1% luck & +1% work wages per karma (max +50%) | Milestones at 10/25/50/100/250/500/1000` });
   await message.reply({ embeds: [embed] });
 }

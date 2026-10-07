@@ -39,7 +39,7 @@ export async function execute(message) {
     d.jobsWorked = (d.jobsWorked || 0) + 1;
     return d;
   });
-  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "work"); if (c) { adjustBalance(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`work ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
+  try { const { progressQuest } = await import("../../storage/quests.js"); const c = progressQuest(message.author.id, "work"); if (c) { rewardCoins(message.author.id, c.reward); await message.channel.send({ embeds: [baseEmbed(COLORS.success).setTitle(`\u{1F4DC} Quest Complete!`).setDescription(`\`work ${c.target}x\` done! ${EMOJIS.coin} **${c.reward.toLocaleString()}** reward credited.`)] }).catch(() => {}); } } catch {}
 
   // XP (doubled if xp booster active)
   const xpBoost = activeBooster(message.author.id, "xp");
