@@ -6,6 +6,7 @@ import { analyzeGuild } from "../services/analyzer.js";
 import { logAction } from "../services/logger.js";
 import { getPendingAction, setPendingAction, clearPendingAction, setPendingVote, getPendingVoteByGuild, addApproval, clearVote } from "../storage/pendingActions.js";
 import { getUserMemories, getGlobalMemories, getMood } from "../storage/memories.js";
+import { readTextAttachments } from "../services/attachments.js";
 
 const CASUAL_PATTERNS = [
   /^(thanks?|ty|thx|thank you|np|no problem|ok|okay|k|kk|cool|nice|got it|i see|understood|lol|lmao|aha|ah|sure|yeah|yep|alright|aight|bet|word|perfect|great|awesome|sounds good)$/i,
@@ -28,11 +29,16 @@ export async function execute(message, args) {
     return;
   }
 
-  const userMessage = args.join(" ");
-  if (!userMessage) {
-    await message.reply("Please provide a message. Usage: `!chat <your message>`");
+  let userMessage = args.join(" ");
+  // Attached text files (.txt, .md, code...) are appended to the message so the AI can read them.
+  const files = await readTextAttachments(message);
+  if (!userMessage && !files.text) {
+    await message.reply(files.skipped.length
+      ? `I can only read text files (.txt, .md, code, etc.). Skipped: ${files.skipped.join(", ")}`
+      : "Please provide a message. Usage: `!chat <your message>` (you can also attach .txt/.md files)");
     return;
   }
+  if (files.text) userMessage = `${userMessage || "Here are some files."}\n\n${files.text}`;
 
   const guildId = message.guild.id;
   const userId = message.author.id;

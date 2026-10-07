@@ -6,6 +6,7 @@ An AI-powered Discord server architect. Uses Claude to help build and manage you
 
 - **`/analyze`** — Scans and stores the full server structure (categories, channels, roles, permissions, emoji, stickers, member counts). Must be run before `/chat`.
 - **`/chat [message]`** — Talk to the AI. Ask it to create roles, channels, categories, and set permissions. It will ask clarifying questions, confirm before executing, and update the server state.
+- **File reading** — attach text files (`.txt`, `.md`, `.json`, code, logs, etc.) to `!chat` or `!ask` and the AI reads them. Up to ~200 KB per file.
 
 ## Setup
 
