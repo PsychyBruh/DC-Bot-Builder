@@ -112,17 +112,16 @@ GIT_URL="${GIT_URL:-https://github.com/PsychyBruh/DC-Bot-Builder.git}"
 read -r -p "Git clone URL [$GIT_URL]: " GIT_INPUT
 GIT_URL="${GIT_INPUT:-$GIT_URL}"
 
-# If HTTPS, offer to embed a PAT so pulls work without auth
+# If HTTPS, offer a PAT so pulls work for private repos.
+# It goes into a root-only git credential file, not into .git/config.
+GIT_PAT=""
 if [[ "$GIT_URL" == https://* ]]; then
-  read -r -p "Personal Access Token (optional, leave blank to skip): " GIT_PAT
-  if [[ -n "$GIT_PAT" ]]; then
-    GIT_URL="${GIT_URL/#https:\/\//https://x-access-token:${GIT_PAT}@}"
-  fi
+  read -r -s -p "Personal Access Token (optional, leave blank to skip): " GIT_PAT; echo
 fi
 
 say "Tokens"
 while [[ -z "${DISCORD_TOKEN:-}" ]]; do read -r -p "Discord bot token: " DISCORD_TOKEN; done
-while [[ -z "${ANTHROPIC_API_KEY:-}" ]]; do read -r -p "Anthropic API key: " ANTHROPIC_API_KEY; done
+while [[ -z "${OPENROUTER_API_KEY:-}" ]]; do read -r -s -p "OpenRouter API key: " OPENROUTER_API_KEY; echo; done
 read -r -p "Discord client ID (optional, press Enter to skip): " CLIENT_ID
 
 # ---------- 1. container ----------
@@ -169,9 +168,22 @@ node -v && npm -v
 
 # ---------- 3. clone ----------
 say "3/5 Cloning repo"
+if [[ -n "$GIT_PAT" ]]; then
+  CRED_HOST="${GIT_URL#https://}"; CRED_HOST="${CRED_HOST%%/*}"
+  CRED_TMP="$(mktemp)"; chmod 600 "$CRED_TMP"
+  printf 'https://x-access-token:%s@%s\n' "$GIT_PAT" "$CRED_HOST" > "$CRED_TMP"
+  pct push "$CTID" "$CRED_TMP" /root/.git-credentials --perms 600
+  rm -f "$CRED_TMP"
+  pctexec "git config --global credential.helper store"
+fi
+# Re-running setup keeps the bot's data/ and .env instead of wiping them.
 pctexec "set -e
-rm -rf '$PROJECT_DIR'
-git clone '$GIT_URL' '$PROJECT_DIR'
+if [ -d '$PROJECT_DIR/.git' ]; then
+  cd '$PROJECT_DIR' && git fetch origin && git reset --hard origin/main
+else
+  rm -rf '$PROJECT_DIR'
+  git clone '$GIT_URL' '$PROJECT_DIR'
+fi
 "
 
 # ---------- 4. deps + .env ----------
@@ -180,13 +192,14 @@ pctexec "set -e
 cd '$PROJECT_DIR'
 npm ci --omit=dev || npm install --omit=dev
 mkdir -p data
-cat > .env <<ENVEOF
-DISCORD_TOKEN=$DISCORD_TOKEN
-ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
-CLIENT_ID=$CLIENT_ID
-ENVEOF
-chmod 600 .env
+id dcbot >/dev/null 2>&1 || useradd --system --home-dir '$PROJECT_DIR' --shell /usr/sbin/nologin dcbot
 "
+# Write .env locally and push it, so tokens never appear in a command line / process list.
+ENV_TMP="$(mktemp)"; chmod 600 "$ENV_TMP"
+printf 'DISCORD_TOKEN=%s\nOPENROUTER_API_KEY=%s\nCLIENT_ID=%s\n' "$DISCORD_TOKEN" "$OPENROUTER_API_KEY" "$CLIENT_ID" > "$ENV_TMP"
+pct push "$CTID" "$ENV_TMP" "$PROJECT_DIR/.env" --perms 600
+rm -f "$ENV_TMP"
+pctexec "chown -R dcbot:dcbot '$PROJECT_DIR'"
 
 # ---------- 5. systemd + botctl ----------
 say "5/5 Installing systemd service and botctl"
@@ -199,7 +212,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=root
+User=dcbot
 WorkingDirectory=$PROJECT_DIR
 ExecStart=/usr/bin/node src/index.js
 Restart=always

@@ -31,7 +31,8 @@ export function startPrivateRoomCleaner(client) {
           }
         }
       } catch (err) {
-        removeRoom(room.id);
+        // Transient error (rate limit, network): keep tracking the room so it still gets cleaned up later.
+        console.error(`Private room cleanup failed for ${room.id}:`, err.message);
       }
     }
   }, 60_000);

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { writeJsonAtomic, readJsonSafe } from "../services/safeWrite.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = path.join(__dirname, "..", "..", "data", "memories.json");
@@ -12,8 +13,7 @@ const userMoods = new Map();
 export function loadMemories() {
   try {
     if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      const data = JSON.parse(raw);
+      const data = readJsonSafe(DATA_FILE, {}) || {};
       if (data.users) {
         for (const [userId, entries] of Object.entries(data.users)) {
           userMemories.set(userId, entries);
@@ -44,7 +44,7 @@ function save() {
     }
     const dir = path.dirname(DATA_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2), "utf-8");
+    writeJsonAtomic(DATA_FILE, obj);
   } catch (err) {
     console.error("Failed to save memories:", err.message);
   }

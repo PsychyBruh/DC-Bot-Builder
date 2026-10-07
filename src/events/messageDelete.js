@@ -1,13 +1,10 @@
-import { EmbedBuilder } from "discord.js";
 import { getSettings } from "../storage/serverSettings.js";
+import { baseEmbed } from "../commands/utils/embeds.js";
 
 export const name = "messageDelete";
 
 export async function execute(message) {
   if (message.author?.bot) return;
-  if (message.partial) {
-    try { await message.fetch(); } catch { return; }
-  }
   const guild = message.guild;
   if (!guild) return;
   const settings = getSettings(guild.id);
@@ -15,10 +12,11 @@ export async function execute(message) {
     ? guild.channels.cache.find((c) => c.name === settings.log_channel || c.id === settings.log_channel)
     : null;
   if (!channel || !channel.isTextBased()) return;
-  const embed = new EmbedBuilder()
-    .setColor(0xED4245)
+  // A deleted message can't be fetched, so uncached (partial) ones are logged without content.
+  const content = message.partial ? "*(not cached — sent before the bot started)*" : message.content || "*(no content)*";
+  const author = message.author ? message.author.tag : "*(unknown)*";
+  const embed = baseEmbed(0xED4245)
     .setTitle("🗑️ Message Deleted")
-    .setDescription(`**Author:** ${message.author.tag}\n**Channel:** <#${message.channelId}>\n**Content:** ${message.content || "*(no content)*"}`.slice(0, 1024))
-    .setTimestamp();
-  await channel.send({ embeds: [embed] }).catch(() => {});
+    .setDescription(`**Author:** ${author}\n**Channel:** <#${message.channelId}>\n**Content:** ${content}`);
+  await channel.send({ embeds: [embed], allowedMentions: { parse: [] } }).catch(() => {});
 }

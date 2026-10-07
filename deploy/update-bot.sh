@@ -13,7 +13,10 @@ echo "==> Resetting to origin/main (discards local changes)..."
 git reset --hard origin/main
 
 echo "==> Installing dependencies..."
-npm ci --omit=dev 2>/dev/null || npm install --omit=dev
+npm ci --omit=dev || npm install --omit=dev
+
+# The service runs as the dcbot user; files pulled as root must stay readable/writable for it.
+if id dcbot >/dev/null 2>&1; then chown -R dcbot:dcbot "$DIR"; fi
 
 echo "==> Restarting service..."
 systemctl restart dc-bot-builder 2>/dev/null || systemctl restart dc-bot-builder.service 2>/dev/null || true

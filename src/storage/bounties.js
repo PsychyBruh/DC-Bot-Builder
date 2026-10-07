@@ -46,6 +46,11 @@ function expire() {
   if (changed) save();
 }
 
+// Drop all bounties in memory (used by !clear before it deletes bounties.json)
+export function clearAllBounties() {
+  bounties = {};
+}
+
 export function placeBounty(fromId, targetId, amount) {
   expire();
   if (!bounties[targetId]) bounties[targetId] = [];

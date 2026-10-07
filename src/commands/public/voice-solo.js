@@ -52,5 +52,4 @@ export async function execute(message, args) {
   ] });
 }
 
-export const name2 = "leave";
 export { findUserRoom, removeRoom };

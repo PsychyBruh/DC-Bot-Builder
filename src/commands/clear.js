@@ -14,6 +14,9 @@ import { clearAllReminders } from "../storage/reminders.js";
 import { clearAllGiveaways } from "../storage/giveaways.js";
 import { clearAllQuotes } from "../storage/quotes.js";
 import { OWNER_IDS } from "./admin/eco.js";
+import { resetMarket } from "../storage/market.js";
+import { resetLottery } from "../storage/lottery.js";
+import { clearAllBounties } from "../storage/bounties.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
@@ -40,6 +43,10 @@ export async function execute(message) {
     clearAllReminders();
     clearAllGiveaways();
     clearAllQuotes();
+    // Without these, the next market/lottery/bounty save would write the old data back.
+    resetMarket();
+    resetLottery();
+    clearAllBounties();
 
     for (const file of [
       "state.jsonl", "settings.json", "buttons.json", "memories.json",

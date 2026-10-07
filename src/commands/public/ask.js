@@ -1,4 +1,5 @@
 import { createMessage } from "../../services/ai.js";
+import { getSettings } from "../../storage/serverSettings.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 
@@ -8,6 +9,9 @@ export const usage = "!ask <question>";
 export const category = "ai";
 
 export async function execute(message, args, { client }) {
+  if (message.guild && getSettings(message.guild.id).ai_enabled === "false") {
+    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("🤖 AI commands are turned off in this server.")] });
+  }
   if (!(await applyCooldown(message, "ask", "ai_long"))) return;
   const question = args.join(" ").trim();
   if (!question) {

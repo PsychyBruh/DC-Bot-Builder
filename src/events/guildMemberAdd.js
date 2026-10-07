@@ -3,11 +3,15 @@ import { getCachedInvites, cacheInvites } from "../storage/inviteCache.js";
 
 export const name = "guildMemberAdd";
 
-const TARGET_INVITE = "qMM6Cm4bjV";
-const TARGET_ROLE = "1519434722327924797";
+// Defaults for the original server; other servers can set invite_role_code / invite_role via settings.
+const DEFAULT_INVITE = "qMM6Cm4bjV";
+const DEFAULT_INVITE_ROLE = "1519434722327924797";
 
 export async function execute(member) {
   const guild = member.guild;
+  const guildSettings = getSettings(guild.id);
+  const TARGET_INVITE = guildSettings.invite_role_code || DEFAULT_INVITE;
+  const TARGET_ROLE = guildSettings.invite_role || DEFAULT_INVITE_ROLE;
 
   const cached = getCachedInvites(guild.id);
   try {
@@ -16,14 +20,12 @@ export async function execute(member) {
     for (const [, inv] of current) {
       const prev = cached.get(inv.code);
       if (inv.code === TARGET_INVITE && prev && inv.uses > prev.uses) {
-        const role = guild.roles.cache.get(TARGET_ROLE);
+        const role = guild.roles.cache.get(TARGET_ROLE) || guild.roles.cache.find((r) => r.name === TARGET_ROLE);
         if (role) await member.roles.add(role).catch(() => {});
         break;
       }
     }
   } catch {}
-
-  const guildSettings = getSettings(guild.id);
 
   const autoRole = guildSettings.auto_role
     ? guild.roles.cache.find((r) => r.name === guildSettings.auto_role || r.id === guildSettings.auto_role)
@@ -46,6 +48,7 @@ export async function execute(member) {
     const text = guildSettings.welcome_message
       .replace(/{user}/g, `<@${member.id}>`)
       .replace(/{server}/g, guild.name);
-    await welcomeChannel.send(text).catch(() => {});
+    // Only ping the new member, never @everyone/roles that might be in the template.
+    await welcomeChannel.send({ content: text, allowedMentions: { users: [member.id] } }).catch(() => {});
   }
 }

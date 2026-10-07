@@ -20,11 +20,15 @@ export async function execute(message) {
   if (!target) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Mention a user")] });
   const ch = await message.guild.channels.fetch(room.id).catch(() => null);
   if (!ch) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Room not found")] });
-  await ch.permissionOverwrites.edit(target.id, {
-    ViewChannel: true,
-    SendMessages: true,
-    Connect: true,
-    Speak: true,
-  });
+  try {
+    await ch.permissionOverwrites.edit(target.id, {
+      ViewChannel: true,
+      SendMessages: true,
+      Connect: true,
+      Speak: true,
+    });
+  } catch {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ I couldn't update the room's permissions.")] });
+  }
   await message.reply({ embeds: [baseEmbed(COLORS.success).setDescription(`✅ ${target} added to your room`)] });
 }

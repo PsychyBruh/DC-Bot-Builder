@@ -1,4 +1,5 @@
 import { createMessage } from "../../services/ai.js";
+import { getSettings } from "../../storage/serverSettings.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 import { applyCooldown } from "../utils/cooldown.js";
 import { getUser } from "../../storage/users.js";
@@ -9,6 +10,9 @@ export const usage = "!ai-roast @user";
 export const category = "ai";
 
 export async function execute(message, args, { client }) {
+  if (message.guild && getSettings(message.guild.id).ai_enabled === "false") {
+    return message.reply({ embeds: [baseEmbed(COLORS.warning).setDescription("🤖 AI commands are turned off in this server.")] });
+  }
   if (!(await applyCooldown(message, "ai-roast", "ai_long"))) return;
   const target = message.mentions.users.first() || message.author;
   const status = await message.reply({ embeds: [baseEmbed(COLORS.info).setDescription("🔥 Cooking up a roast...")] });

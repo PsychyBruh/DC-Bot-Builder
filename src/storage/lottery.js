@@ -79,4 +79,9 @@ export function draw(forced = false) {
   return { winnerId, pot, forced, channelId, refunded };
 }
 
+// Reset in-memory state (used by !clear before it deletes lottery.json)
+export function resetLottery() {
+  state = { ...state, jackpot: SEED, tickets: [], lastDraw: Date.now() };
+}
+
 export function setPrice(p) { state.ticketPrice = p; save(); }

@@ -43,7 +43,8 @@ async function fireDrop(client) {
     const msg = await channel.send({ embeds: [embed] });
     await msg.react(EMOJIS.coin.replace(/\uFE0F/g, "")).catch(() => msg.react(EMOJIS.coin));
 
-    const filter = (r, user) => !user.bot;
+    // Only the coin reaction counts, not any emoji
+    const filter = (r, user) => !user.bot && r.emoji.name === EMOJIS.coin;
     const collected = await msg.awaitReactions({ filter, time: REACTION_WINDOW, max: 1, errors: ["time"] }).catch(() => null);
 
     if (!collected || !collected.size) {
@@ -54,7 +55,7 @@ async function fireDrop(client) {
     const winner = reaction.users.cache.find((u) => !u.bot);
     if (!winner) return;
     const won = rewardCoins(winner.id, PRIZE);
-    await msg.reply({ embeds: [baseEmbed(COLORS.success).setTitle(`${EMOJIS.trophy} Winner!`).setDescription(`<@${winner.id}> reacted first and won ${EMOJIS.coin} **${won.toLocaleString()}**!${won !== PRIZE ? `\n**2x coin boost applied!** (base ${PRIZE.toLocaleString()})` : ""}`)] }).catch(() => {});
+    await msg.reply({ embeds: [baseEmbed(COLORS.success).setTitle(`${EMOJIS.trophy} Winner!`).setDescription(`<@${winner.id}> reacted first and won ${EMOJIS.coin} **${won.toLocaleString()}**!${won !== PRIZE ? `\n*Boosted from base ${PRIZE.toLocaleString()}*` : ""}`)] }).catch(() => {});
   } catch (err) {
     console.error("drop event failed:", err.message);
   }

@@ -61,6 +61,11 @@ export function getPrice() {
   return state.price;
 }
 
+// Reset in-memory state (used by !clear before it deletes market.json)
+export function resetMarket() {
+  state = { price: 100, lastUpdate: 0, history: [] };
+}
+
 export function getHistory() {
   tickMarket();
   return state.history;

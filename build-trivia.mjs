@@ -1,7 +1,14 @@
 import { readFileSync, writeFileSync, readdirSync } from "fs";
-import { join } from "path";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
-const TMP_DIR = "C:\\Users\\psychy\\.local\\share\\opencode\\tool-output";
+// Directory holding the raw Open Trivia DB dumps. Pass it as the first argument or TRIVIA_SRC.
+const TMP_DIR = process.argv[2] || process.env.TRIVIA_SRC;
+if (!TMP_DIR) {
+  console.error("Usage: node build-trivia.mjs <dir-with-raw-trivia-dumps>");
+  process.exit(1);
+}
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const CATEGORY_FILES = {
   general: "tool_fbbc59b48001KmCmVMstQxvaZY",
@@ -29,13 +36,13 @@ const CATEGORY_FILES = {
 const PER_CATEGORY = 500;
 
 const ENTITY_MAP = {
-  "&": "&",
+  "&amp;": "&",
+  "&quot;": '"',
   "&#039;": "'",
   "&rsquo;": "'",
   "&lsquo;": "'",
   "&ldquo;": '"',
   "&rdquo;": '"',
-  "&ldquo;": '"',
   "&nbsp;": " ",
   "&hellip;": "...",
   "&mdash;": "-",
@@ -148,7 +155,7 @@ for (const [category, fileId] of Object.entries(CATEGORY_FILES)) {
 }
 
 const shuffled = shuffle(allQuestions);
-const outPath = "data/trivia-questions.json";
+const outPath = join(__dirname, "data", "trivia-questions.json");
 writeFileSync(outPath, JSON.stringify(shuffled), "utf8");
 
 let totalRaw = 0, totalPicked = 0;

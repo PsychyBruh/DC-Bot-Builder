@@ -15,8 +15,12 @@ export async function execute(message) {
   if (!room) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ No room")] });
   const target = message.mentions.users.first();
   if (!target) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Mention a user")] });
+  if (target.id === message.author.id) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ You can't kick yourself — use `!leave` to delete the room")] });
   const ch = await message.guild.channels.fetch(room.id).catch(() => null);
-  if (!ch) return;
+  if (!ch) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Room not found")] });
+  // Also boot them from the voice channel if they're in it
+  const member = ch.members?.get?.(target.id);
+  if (member?.voice?.channelId === ch.id) await member.voice.disconnect().catch(() => {});
   await ch.permissionOverwrites.delete(target.id).catch(() => {});
   await message.reply({ embeds: [baseEmbed(COLORS.success).setDescription(`✅ ${target} removed`)] });
 }

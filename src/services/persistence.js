@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, "..", "..", "data");
 const STATE_FILE = path.join(DATA_DIR, "state.jsonl");
+let cached = null; // loadAll() is called by several stores at startup; read the file once
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -28,26 +29,37 @@ export function loadAll() {
     return { contexts: [], conversations: [], pendings: [] };
   }
 
-  const contexts = [];
-  const conversations = [];
-  const pendings = [];
+  if (cached) return cached;
 
+  // Only the newest line per (type, key) matters; older lines are superseded.
+  const latest = new Map();
   try {
     const data = fs.readFileSync(STATE_FILE, "utf-8");
     const lines = data.trim().split("\n").filter(Boolean);
     for (const line of lines) {
       try {
         const entry = JSON.parse(line);
-        if (entry.t === "ctx") contexts.push(entry);
-        else if (entry.t === "conv") conversations.push(entry);
-        else if (entry.t === "pend") pendings.push(entry);
+        latest.set(`${entry.t}\u0000${entry.k}`, entry);
       } catch {
         // skip malformed lines
       }
+    }
+    // Compact: rewrite the append-only log with just the live entries so it stops growing forever.
+    if (latest.size < lines.length) {
+      const tmp = `${STATE_FILE}.tmp`;
+      fs.writeFileSync(tmp, [...latest.values()].map((e) => JSON.stringify(e)).join("\n") + "\n", "utf-8");
+      fs.renameSync(tmp, STATE_FILE);
+      console.log(`Compacted state.jsonl: ${lines.length} -> ${latest.size} lines`);
     }
   } catch (err) {
     console.error("Failed to load state:", err.message);
   }
 
-  return { contexts, conversations, pendings };
+  const entries = [...latest.values()];
+  cached = {
+    contexts: entries.filter((e) => e.t === "ctx"),
+    conversations: entries.filter((e) => e.t === "conv"),
+    pendings: entries.filter((e) => e.t === "pend"),
+  };
+  return cached;
 }

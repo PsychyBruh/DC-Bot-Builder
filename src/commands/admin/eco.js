@@ -5,7 +5,6 @@ export const name = "eco";
 export const description = "Exclusive economy admin: give/take coins from any user.";
 export const usage = "!eco <give|take> <@user> <amount>";
 export const category = "admin";
-export const adminOnly = true;
 
 export const OWNER_IDS = new Set(["812812088502255636", "601068529378132019"]);
 
@@ -25,6 +24,9 @@ export async function execute(message, args) {
   }
 
   const amount = parseInt(args.find((a) => /^\d+$/.test(a)), 10) || 0;
+  if (amount > 1_000_000_000) {
+    return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Max 1,000,000,000 per command.`)] });
+  }
   if (amount < 1) {
     return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription(`${EMOJIS.cross} Specify a positive amount.`)] });
   }

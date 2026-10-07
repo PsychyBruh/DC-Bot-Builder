@@ -39,7 +39,7 @@ export async function execute(message) {
       { id: message.guild.members.me.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.Connect, PermissionFlagsBits.MuteMembers, PermissionFlagsBits.DeafenMembers, PermissionFlagsBits.MoveMembers, PermissionFlagsBits.ManageChannels] },
     ],
   });
-  registerRoom({ id: room.id, ownerId: message.author.id, guildId: message.guild.id, type: "voice" });
+  registerRoom({ id: room.id, ownerId: message.author.id, guildId: message.guild.id, type: "voice", study: true });
   await message.reply({ embeds: [baseEmbed(COLORS.success)
     .setTitle("📚 Focus Mode")
     .setDescription(`Focus room created: <#${room.id}>\n\nYou'll be auto-muted/deafened when you join. Use \`!leave\` to exit.`)

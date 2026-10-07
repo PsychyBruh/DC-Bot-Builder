@@ -5,7 +5,7 @@ import { getAllRooms } from "../../storage/privateRooms.js";
 import { getUser } from "../../storage/users.js";
 
 export const name = "admin-panel";
-export const description = "Beautiful admin panel for the bot (ephemeral)";
+export const description = "Admin panel for the bot's server settings";
 export const usage = "!admin-panel";
 export const category = "admin";
 export const adminOnly = true;
@@ -31,10 +31,19 @@ const SETTINGS_DEFS = [
   { key: "log_channel", label: "Log Channel", type: "channel" },
 ];
 
-export async function execute(message, { client }) {
+export async function execute(message, args, { client }) {
   const panel = buildHomePanel(message.guild, client);
-  await message.reply({ embeds: [panel.embed], components: panel.rows, ephemeral: true });
+  await message.reply({ embeds: [panel.embed], components: panel.rows });
 }
+
+// Which settings each category button shows
+const PANEL_KEYS = {
+  settings: SETTINGS_DEFS.map((d) => d.key),
+  roles: ["auto_role", "member_role"],
+  welcome: ["welcome_channel", "welcome_message", "goodbye_channel", "goodbye_message"],
+  channels: ["welcome_channel", "goodbye_channel", "log_channel"],
+  ai: ["ai_enabled"],
+};
 
 function buildHomePanel(guild, client) {
   const settings = getSettings(guild.id);
@@ -57,30 +66,30 @@ function buildHomePanel(guild, client) {
   return { embed, rows: [row1, row2] };
 }
 
-function buildSettingsPanel(guild) {
+function buildSettingsPanel(guild, panelKey = "settings") {
   const settings = getSettings(guild.id);
-  const fields = SETTINGS_DEFS.map((def) => {
+  const defs = SETTINGS_DEFS.filter((d) => PANEL_KEYS[panelKey].includes(d.key));
+  const fields = defs.map((def) => {
     const val = settings[def.key];
     const status = val ? `✅ \`${val}\`` : "⚪ Not set";
     return { name: def.label, value: status, inline: true };
   });
   const embed = baseEmbed(COLORS.primary)
-    .setTitle("⚙️ Server Settings")
+    .setTitle(`${PANELS[panelKey].emoji} ${PANELS[panelKey].name}`)
     .setDescription("Current configuration. Use the buttons below to toggle or set values.")
     .addFields(fields)
-    .setFooter({ text: "Use the chat to set values: !chat set welcome_message to Welcome {user}!" });
+    .setFooter({ text: "Click a setting to view, toggle or clear it" });
 
-  const row1 = new ActionRowBuilder();
-  const row2 = new ActionRowBuilder();
-  const row3 = new ActionRowBuilder();
-  const rows = [row1, row2, row3];
-  for (let i = 0; i < SETTINGS_DEFS.length; i++) {
-    const def = SETTINGS_DEFS[i];
+  // Only create rows that get buttons — an empty ActionRow is rejected by Discord.
+  const rows = [];
+  for (let i = 0; i < defs.length; i++) {
+    const def = defs[i];
+    if (i % 5 === 0) rows.push(new ActionRowBuilder());
     const btn = new ButtonBuilder()
       .setCustomId(`ap_set_${def.key}_${Date.now()}`)
       .setLabel(def.label.length > 25 ? def.label.slice(0, 25) : def.label)
       .setStyle(def.type === "toggle" ? (settings[def.key] === "true" ? ButtonStyle.Success : ButtonStyle.Secondary) : ButtonStyle.Secondary);
-    rows[Math.floor(i / 5)].addComponents(btn);
+    rows[rows.length - 1].addComponents(btn);
   }
   const backRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`ap_home_${Date.now()}`).setLabel("⬅️ Back").setStyle(ButtonStyle.Primary),
@@ -118,21 +127,26 @@ function buildInfoPanel(guild, settingsKey) {
   const def = SETTINGS_DEFS.find((s) => s.key === settingsKey);
   const embed = baseEmbed(COLORS.info)
     .setTitle(`Setting: ${def.label}`)
-    .setDescription(`Current value: ${val ? `\`${val}\`` : "Not set"}\n\n**To change via chat:**\n\`!chat set ${settingsKey} to <value>\`\n\n**To clear:**\n\`!chat unset ${settingsKey}\``)
+    .setDescription(`Current value: ${val ? `\`${val}\`` : "Not set"}\n\n**To change via chat:**\n\`!chat set ${settingsKey} to <value>\`\n\nUse **Clear** below to unset it.`)
     .setFooter({ text: def.type === "toggle" ? "Boolean toggle" : def.type === "role" ? "Role name or ID" : def.type === "channel" ? "Channel name" : "Free text" });
   const rows = [];
+  const row = new ActionRowBuilder();
   if (def.type === "toggle") {
-    rows.push(new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`ap_toggle_${settingsKey}_${Date.now()}`).setLabel(val === "true" ? "Disable" : "Enable").setStyle(val === "true" ? ButtonStyle.Danger : ButtonStyle.Success),
-    ));
+    // Unset counts as enabled (the default)
+    const on = val !== "false";
+    row.addComponents(new ButtonBuilder().setCustomId(`ap_toggle_${settingsKey}_${Date.now()}`).setLabel(on ? "Disable" : "Enable").setStyle(on ? ButtonStyle.Danger : ButtonStyle.Success));
   }
-  rows.push(new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`ap_settings_${Date.now()}`).setLabel("⬅️ Back").setStyle(ButtonStyle.Primary),
-  ));
+  if (val) row.addComponents(new ButtonBuilder().setCustomId(`ap_clear_${settingsKey}_${Date.now()}`).setLabel("Clear").setStyle(ButtonStyle.Secondary));
+  row.addComponents(new ButtonBuilder().setCustomId(`ap_settings_${Date.now()}`).setLabel("⬅️ Back").setStyle(ButtonStyle.Primary));
+  rows.push(row);
   return { embed, rows };
 }
 
 export async function handleAdminPanelButton(interaction, { client }) {
+  // The panel message is visible to everyone, so check every click.
+  if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+    return interaction.reply({ content: "❌ Only administrators can use the admin panel.", ephemeral: true });
+  }
   const parts = interaction.customId.split("_");
   const action = parts[1];
   const key = parts.length > 3 ? parts.slice(2, -1).join("_") : null;
@@ -142,8 +156,14 @@ export async function handleAdminPanelButton(interaction, { client }) {
     return interaction.update({ embeds: [panel.embed], components: panel.rows});
   }
 
-  if (action === "settings") {
-    const panel = buildSettingsPanel(interaction.guild);
+  if (PANEL_KEYS[action]) {
+    const panel = buildSettingsPanel(interaction.guild, action);
+    return interaction.update({ embeds: [panel.embed], components: panel.rows});
+  }
+
+  if (action === "clear" && key) {
+    removeSetting(interaction.guildId, key);
+    const panel = buildInfoPanel(interaction.guild, key);
     return interaction.update({ embeds: [panel.embed], components: panel.rows});
   }
 
@@ -159,7 +179,7 @@ export async function handleAdminPanelButton(interaction, { client }) {
 
   if (action === "toggle" && key) {
     const settings = getSettings(interaction.guildId);
-    const newVal = settings[key] === "true" ? "false" : "true";
+    const newVal = settings[key] === "false" ? "true" : "false";
     setSetting(interaction.guildId, key, newVal);
     const panel = buildInfoPanel(interaction.guild, key);
     return interaction.update({ embeds: [panel.embed], components: panel.rows});
