@@ -23,6 +23,7 @@ export function startFeatureScheduler(client) {
     for (const g of client.guilds.cache.values()) await updateCounters(g);
   });
   every(60 * 60_000, "inactive-tickets", async () => (await import("./clean.js")).checkInactiveTickets(client));
+  every(60 * 60_000, "unverified-kick", async () => (await import("./verification.js")).kickUnverified(client));
   every(60 * 60_000, "forum-tidy", async () => (await import("./clean.js")).tidyForums(client));
   every(24 * 60 * 60_000, "achievements", async () => (await import("./roblox.js")).syncAllAchievements(client));
 

@@ -19,7 +19,12 @@ export const SETTING_KEYS = {
   auto_role:             { type: "role",    group: "Welcome",     desc: "Role given to everyone on join" },
   verify_role:           { type: "role",    group: "Verify",      fallback: "verified, member", desc: "Role the Verify button gives" },
   unverified_role:       { type: "role",    group: "Verify",      desc: "Role given on join and removed on verify" },
-  min_account_age_days:  { type: "number",  group: "Verify",      desc: "Accounts younger than this need staff approval to verify (default 3, 0 = off)" },
+  min_account_age_days:  { type: "number",  group: "Verify",      desc: "Discord accounts younger than this can't verify yet (default 3, 0 = off)" },
+  verify_mode:           { type: "text",    group: "Verify",      desc: "button | captcha (default) | roblox (captcha + linked Roblox account)" },
+  verify_rules_question: { type: "text",    group: "Verify",      desc: "Optional question asked during verification, e.g. 'Where do you report bugs?'" },
+  verify_rules_answer:   { type: "text",    group: "Verify",      desc: "Accepted answer(s) to the rules question, comma-separated" },
+  roblox_min_age_days:   { type: "number",  group: "Verify",      desc: "roblox mode: Roblox account must be this old (default 30)" },
+  verify_kick_hours:     { type: "number",  group: "Verify",      desc: "Kick members who haven't verified after this many hours (0 = off)" },
   // --- logging ---
   mod_log_channel:       { type: "channel", group: "Logging",     fallback: "mod-log", desc: "Bans, kicks, timeouts, role changes, warnings, AutoMod" },
   message_log_channel:   { type: "channel", group: "Logging",     fallback: "message-log", desc: "Edited/deleted messages" },

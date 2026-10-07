@@ -158,7 +158,7 @@ export function verifyRole(guild) {
 export async function postVerifyPanel(channel, role, text) {
   const embed = baseEmbed(COLORS.success)
     .setTitle("✅ Verification")
-    .setDescription(text || `Click **Verify** below to get access to the server.\n\nYou'll receive the <@&${role.id}> role.`);
+    .setDescription(text || `Click **Verify** below and complete the quick check to get access to the server.\n\nYou'll receive the <@&${role.id}> role.`);
   embed.data.timestamp = undefined;
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId("verify").setLabel("Verify").setEmoji("✅").setStyle(ButtonStyle.Success),
@@ -166,25 +166,4 @@ export async function postVerifyPanel(channel, role, text) {
   return channel.send({ embeds: [embed], components: [row] });
 }
 
-export async function handleVerifyButton(interaction) {
-  const role = verifyRole(interaction.guild);
-  if (!role) return interaction.reply({ content: "Verification isn't set up yet — ask an admin to run `!setup verify_role @role`.", ephemeral: true });
-  const member = interaction.member;
-  if (member.roles.cache.has(role.id)) return interaction.reply({ content: `You're already verified.`, ephemeral: true });
-  if (!canManageRole(interaction.guild, role)) return interaction.reply({ content: "I can't give that role — my role needs to be above it.", ephemeral: true });
-  const { raidState, needsAltReview, requestAltApproval } = await import("./safety.js");
-  if (raidState(interaction.guildId).locked) {
-    return interaction.reply({ content: "🔒 Verification is temporarily locked (raid protection). Please try again in a few minutes.", ephemeral: true });
-  }
-  if (needsAltReview(member)) {
-    const sent = await requestAltApproval(member);
-    return interaction.reply({ content: sent ? "🕵️ Your account is very new, so a staff member will review your verification shortly." : "⏳ Your verification is waiting for staff review.", ephemeral: true });
-  }
-  await member.roles.add(role, "verified via button");
-  const unverified = resolveRole(interaction.guild, "unverified_role", ["unverified"]);
-  if (unverified && member.roles.cache.has(unverified.id)) await member.roles.remove(unverified).catch(() => {});
-  const { logJoinLeave } = await import("./logging.js");
-  logJoinLeave(interaction.guild, baseEmbed(COLORS.success).setTitle("✅ Member verified").setDescription(`${member} (${member.user.tag})`));
-  return interaction.reply({ content: `✅ Verified! Welcome — you now have **${role.name}**.`, ephemeral: true });
-}
 

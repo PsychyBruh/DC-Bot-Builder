@@ -12,12 +12,15 @@ export async function routeFeatureInteraction(interaction) {
     if (id.startsWith("tktm:")) return run(import("./tickets.js"), "handleTicketModal", interaction);
     if (id.startsWith("appm:")) return run(import("./applications.js"), "handleApplicationModal", interaction);
     if (id.startsWith("appd:")) return run(import("./applications.js"), "handleReviewModal", interaction);
+    if (id === "vfym:captcha") return run(import("./verification.js"), "handleCaptchaModal", interaction);
     return false;
   }
 
   if (!interaction.isButton?.()) return false;
   if (id.startsWith("sr:")) return run(import("./roles.js"), "handleSelfRoleButton", interaction);
-  if (id === "verify") return run(import("./roles.js"), "handleVerifyButton", interaction);
+  if (id === "verify") return run(import("./verification.js"), "handleVerifyButton", interaction);
+  if (id === "vfy:code") return run(import("./verification.js"), "handleCodeButton", interaction);
+  if (id === "vfy:roblox") return run(import("./verification.js"), "handleRobloxButton", interaction);
   if (id.startsWith("tkt:")) return run(import("./tickets.js"), "handleTicketButton", interaction);
   if (id.startsWith("app:")) return run(import("./applications.js"), "handleApplyButton", interaction);
   if (id.startsWith("appr:")) return run(import("./applications.js"), "handleReviewButton", interaction);

@@ -25,6 +25,7 @@ export async function onMemberJoinRaidCheck(member) {
   const list = (recentJoins.get(g.id) || []).filter((t) => now - t < windowMs);
   list.push(now);
   recentJoins.set(g.id, list);
+  if (list.length >= Math.max(3, Math.ceil(threshold / 2))) { raidState(g.id).lastBurstAt = now; saveFeatures(); }
   if (list.length >= threshold && !raidState(g.id).locked) {
     await startLockdown(g, `${list.length} joins in ${windowMs / 1000}s`);
   }
