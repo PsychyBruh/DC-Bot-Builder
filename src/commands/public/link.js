@@ -25,7 +25,7 @@ export async function execute(message, args) {
       if (res.error) return message.reply(`❌ ${res.error}`);
       return message.reply({ embeds: [baseEmbed(COLORS.success).setTitle("🔗 Roblox linked!").setDescription(`You're linked to **${res.username}**. You can remove the code from your profile now.`)] });
     }
-    const res = await startLink(message.author.id, args[0]);
+    const res = await startLink(message.author.id, args[0], message.guild.id);
     if (res.error) return message.reply(`❌ ${res.error}`);
     return message.reply({ embeds: [baseEmbed(COLORS.info).setTitle("🔗 Link your Roblox account").setDescription(
       `1. Go to your Roblox profile (**${res.username}**) and put this in your **About**:\n\`\`\`${res.code}\`\`\`\n2. Save it, then run \`!link verify\` within 30 minutes.`)] });

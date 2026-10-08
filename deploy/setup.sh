@@ -121,7 +121,10 @@ fi
 
 say "Tokens"
 while [[ -z "${DISCORD_TOKEN:-}" ]]; do read -r -p "Discord bot token: " DISCORD_TOKEN; done
-while [[ -z "${OPENROUTER_API_KEY:-}" ]]; do read -r -s -p "OpenRouter API key: " OPENROUTER_API_KEY; echo; done
+read -r -s -p "OpenAI API key (blank to use OpenRouter instead): " OPENAI_API_KEY; echo
+if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+  while [[ -z "${OPENROUTER_API_KEY:-}" ]]; do read -r -s -p "OpenRouter API key: " OPENROUTER_API_KEY; echo; done
+fi
 read -r -p "Discord client ID (optional, press Enter to skip): " CLIENT_ID
 
 # ---------- 1. container ----------
@@ -196,7 +199,7 @@ id dcbot >/dev/null 2>&1 || useradd --system --home-dir '$PROJECT_DIR' --shell /
 "
 # Write .env locally and push it, so tokens never appear in a command line / process list.
 ENV_TMP="$(mktemp)"; chmod 600 "$ENV_TMP"
-printf 'DISCORD_TOKEN=%s\nOPENROUTER_API_KEY=%s\nCLIENT_ID=%s\n' "$DISCORD_TOKEN" "$OPENROUTER_API_KEY" "$CLIENT_ID" > "$ENV_TMP"
+printf 'DISCORD_TOKEN=%s\nOPENAI_API_KEY=%s\nOPENROUTER_API_KEY=%s\nCLIENT_ID=%s\n' "$DISCORD_TOKEN" "${OPENAI_API_KEY:-}" "${OPENROUTER_API_KEY:-}" "$CLIENT_ID" > "$ENV_TMP"
 pct push "$CTID" "$ENV_TMP" "$PROJECT_DIR/.env" --perms 600
 rm -f "$ENV_TMP"
 pctexec "chown -R dcbot:dcbot '$PROJECT_DIR'"

@@ -25,6 +25,44 @@ Automatic: welcome cards, join/leave/mod/message logs, anti-raid, anti-nuke, new
 
 Optional `.env` keys: `ROBLOX_API_KEY` (Open Cloud, for in-game leaderboards), `GITHUB_TOKEN` (open GitHub issues for confirmed bugs).
 
+## Building a whole server from a spec (blueprints)
+
+Paste or attach your full server spec:
+
+```
+!blueprint <spec>          (or attach a .txt / .md)
+```
+
+The AI writes **one** structured build plan (a single call — a big server costs a few cents with `gpt-5-mini`). You get `blueprint.json` to review (edit it and `!blueprint load` it back if you like), then press **Build it**. The bot builds everything itself with no AI involved: roles (order, colours, permissions), categories and channels (permissions, topics, slowmode, forum tags/guidelines), server settings and Community, native AutoMod rules, every feature setting, ticket types and application forms, rank roles, role panels, verify/ticket panels, stickies, schedules, counters and pinned starter messages. It is rate-limit safe and resumable — `!blueprint build` again updates what exists and skips posted messages. `!blueprint status` shows notes.
+
+**Before building, drag the bot's role to the top of the role list** (it can only create/order roles below itself). Move it back under your leadership roles afterwards.
+
+## AI provider & cost controls (.env)
+
+| Key | What it does |
+|---|---|
+| `OPENAI_API_KEY` | Use OpenAI directly (default model `gpt-5-mini`). If unset, OpenRouter is used. |
+| `OPENROUTER_API_KEY` | OpenRouter key (free models work for small `!chat` jobs). |
+| `AI_PROVIDER` | Force `openai` or `openrouter`. |
+| `AI_MODEL` | Model for `!chat` / `!ask`. |
+| `BLUEPRINT_MODEL` | Model for `!blueprint` (default `gpt-5-mini` on OpenAI). |
+| `AI_REASONING` | `minimal` / `low` (default) / `medium` for GPT-5 models. |
+| `AI_BUDGET_USD` | Stop all AI calls once estimated spend reaches this (e.g. `1.50`). Spend is tracked in `data/ai-usage.json`. |
+| `CHAT_MAX_ROUNDS` | Tool rounds per `!chat` (default 30). |
+| `ROBLOX_API_KEY` | Open Cloud key for OrderedDataStore leaderboards. |
+| `GITHUB_TOKEN` | Open GitHub issues for confirmed bugs. |
+
+### Leaderboard endpoint format
+
+`!setup leaderboard_endpoint https://…` — the URL must return:
+
+```json
+{ "boards": [ { "key": "races", "title": "Races", "format": "time", "ascending": true,
+                "entries": [ { "player": "Name", "value": 61234 } ] } ] }
+```
+
+`format: "time"` values are milliseconds. One embed per board is kept up to date in the leaderboard channel; a new #1 is announced in `records_channel`.
+
 ## Setup
 
 ### Prerequisites
@@ -66,8 +104,8 @@ Copy `.env` and fill in your values:
 
 ```
 DISCORD_TOKEN=your_discord_bot_token_here
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-AI_MODEL=poolside/laguna-s-2.1:free
+OPENAI_API_KEY=your_openai_key_here        # or OPENROUTER_API_KEY=...
+AI_BUDGET_USD=1.50
 CLIENT_ID=your_discord_application_client_id_here
 ```
 

@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } fro
 import { baseEmbed, COLORS } from "../commands/utils/embeds.js";
 import { featureData, saveFeatures, resolveChannel, resolveRole, canManageRole } from "./config.js";
 import { getSettings } from "../storage/serverSettings.js";
+import { settingNum as settingNumSafe, resolveChannels, memberAllowed } from "./config.js";
 
 // Linked accounts are global (one Roblox account per Discord user, works in every server):
 // featureData("_global", "robloxLinks"): { [discordId]: { robloxId, username, linkedAt } }
@@ -29,10 +30,11 @@ async function robloxProfile(id) {
 }
 
 // Step 1: hand the user a code to put in their Roblox profile "About".
-export async function startLink(userId, username) {
+export async function startLink(userId, username, guildId = null) {
   const user = await robloxUserByName(username);
   if (!user) return { error: `No Roblox user named **${username}**.` };
-  const code = Array.from({ length: 4 }, () => WORDS[Math.floor(Math.random() * WORDS.length)]).join(" ");
+  const n = Math.min(10, Math.max(3, guildId ? settingNumSafe(guildId, "link_phrase_words", 6) : 6));
+  const code = Array.from({ length: n }, () => WORDS[Math.floor(Math.random() * WORDS.length)]).join(" ");
   featureData("_global", "robloxPending", {})[userId] = { robloxId: user.id, username: user.name, code, at: Date.now() };
   saveFeatures();
   return { code, username: user.name, robloxId: user.id };
@@ -54,6 +56,10 @@ export async function finishLink(member) {
   delete pending[member.id];
   saveFeatures();
   await applyLinkRoles(member);
+  // Optional: nickname = Roblox display name
+  if (getSettings(member.guild.id).link_set_nickname === "true" && member.manageable) {
+    await member.setNickname((profile.displayName || p.username).slice(0, 32), "Roblox linked").catch(() => {});
+  }
   return { username: p.username, robloxId: p.robloxId };
 }
 
@@ -171,6 +177,50 @@ export async function runDailyLeaderboards(client) {
   }
 }
 
+// ===================== ENDPOINT LEADERBOARDS =====================
+// leaderboard_endpoint returns JSON:
+// { "boards": [ { "key": "races", "title": "Races", "format": "time"|"number", "ascending": true,
+//                 "entries": [ { "player": "name", "value": 61234 } ] } ] }
+// One auto-updating embed per board in the leaderboard channel; a new #1 is announced in records_channel.
+export async function runEndpointLeaderboards(client) {
+  for (const guild of client.guilds.cache.values()) {
+    const s = getSettings(guild.id);
+    const configured = featureData(guild.id, "leaderboards", []);
+    if (!s.leaderboard_endpoint && !configured.some((b) => b.key)) continue;
+    const ch = resolveChannel(guild, "leaderboard_channel", ["leaderboards", "leaderboard"]);
+    if (!ch) continue;
+    const state = featureData(guild.id, "endpointBoards", {});
+    let boards = [];
+    if (s.leaderboard_endpoint) {
+      try {
+        const res = await fetch(s.leaderboard_endpoint, { signal: AbortSignal.timeout(15_000) });
+        if (res.ok) boards = (await res.json()).boards || [];
+      } catch (err) { console.error(`leaderboard endpoint (${guild.name}):`, err.message); }
+    }
+    // Boards configured without data yet show "Coming soon"
+    for (const b of configured.filter((x) => x.key)) if (!boards.some((x) => x.key === b.key)) boards.push({ ...b, entries: null });
+    for (const b of boards) {
+      const key = b.key || b.title;
+      const medals = ["🥇", "🥈", "🥉"];
+      const sorted = b.entries ? [...b.entries].sort((x, y) => (b.ascending ? x.value - y.value : y.value - x.value)).slice(0, 10) : null;
+      const embed = baseEmbed(COLORS.dark).setTitle(`🏁 ${b.title || key}`)
+        .setDescription(sorted ? (sorted.map((e, i) => `${medals[i] || `**${i + 1}.**`} ${e.player} — **${fmt(e.value, b.format)}**`).join("\n") || "No records yet.") : "Coming soon")
+        .setFooter({ text: "Updates every 15 minutes" });
+      const st = state[key] ??= {};
+      let msg = st.messageId ? await ch.messages.fetch(st.messageId).catch(() => null) : null;
+      if (msg) await msg.edit({ embeds: [embed] }).catch(() => {});
+      else { msg = await ch.send({ embeds: [embed] }).catch(() => null); if (msg) st.messageId = msg.id; }
+      const top = sorted?.[0];
+      if (top && st.top && (st.top.player !== top.player || st.top.value !== top.value)) {
+        const rec = resolveChannel(guild, "records_channel", ["records-showcase", "records"]);
+        if (rec) await rec.send({ embeds: [baseEmbed(COLORS.gold).setDescription(`🏆 New record: **${top.player}** — ${b.title || key} — **${fmt(top.value, b.format)}**`)] }).catch(() => {});
+      }
+      if (top) st.top = { player: top.player, value: top.value };
+    }
+    saveFeatures();
+  }
+}
+
 // ===================== PLAYTESTS =====================
 // featureData(guild, "playtests"): { [messageId]: { at, durationMin, notes, channelId, going: [], reminded, opened, closed, hostId } }
 export function parseWhen(text) {
@@ -185,8 +235,8 @@ export function parseWhen(text) {
 }
 
 function playtestEmbed(p, guild) {
-  return baseEmbed(p.closed ? COLORS.dark : COLORS.cyan).setTitle("🧪 Playtest")
-    .setDescription(`**When:** <t:${Math.floor(p.at / 1000)}:F> (<t:${Math.floor(p.at / 1000)}:R>)\n**Length:** ${p.durationMin} min${p.notes ? `\n\n${p.notes}` : ""}\n\n**Going (${p.going.length}):** ${p.going.length ? p.going.map((u) => `<@${u}>`).join(", ").slice(0, 900) : "nobody yet"}`)
+  return baseEmbed(COLORS.dark).setTitle(`🧪 Playtest${p.build ? ` — ${p.build}` : ""}`)
+    .setDescription(`**When:** <t:${Math.floor(p.at / 1000)}:F> (<t:${Math.floor(p.at / 1000)}:R>)\n**Length:** ${p.durationMin} min${p.notes ? `\n**What to test:** ${p.notes}` : ""}\n\n**I'm in (${p.going.length}):** ${p.going.length ? p.going.map((u) => `<@${u}>`).join(", ").slice(0, 900) : "nobody yet"}\n**Can't make it (${(p.notGoing || []).length})**`)
     .setFooter({ text: p.closed ? "Playtest finished" : "Click I'm in to get pinged when it starts" });
 }
 
@@ -197,12 +247,11 @@ function playtestRow(p) {
   );
 }
 
-export async function createPlaytest(guild, host, at, durationMin, notes) {
-  const ch = resolveChannel(guild, "playtest_channel", ["playtests", "playtest", "tester-announcements"]);
+export async function createPlaytest(guild, host, at, durationMin, notes, build = null) {
+  const ch = resolveChannel(guild, "playtest_channel", ["tester-announcements", "playtests", "playtest"]);
   if (!ch) return { error: "No playtest channel — set `playtest_channel`." };
-  const tester = resolveRole(guild, "tester_role", ["tester", "testers", "playtester"]);
-  const p = { at, durationMin, notes, channelId: ch.id, going: [], reminded: false, opened: false, closed: false, hostId: host.id };
-  const msg = await ch.send({ content: tester ? `${tester} new playtest scheduled!` : undefined, embeds: [playtestEmbed(p, guild)], components: [playtestRow(p)], allowedMentions: { roles: tester ? [tester.id] : [] } });
+  const p = { at, durationMin, notes, build, channelId: ch.id, going: [], notGoing: [], reminded: false, opened: false, closed: false, hostId: host.id };
+  const msg = await ch.send({ embeds: [playtestEmbed(p, guild)], components: [playtestRow(p)] });
   featureData(guild.id, "playtests", {})[msg.id] = p;
   saveFeatures();
   return { message: msg };
@@ -212,9 +261,9 @@ export async function handlePlaytestButton(interaction) {
   const p = featureData(interaction.guildId, "playtests", {})[interaction.message.id];
   if (!p || p.closed) return interaction.reply({ content: "This playtest is over.", ephemeral: true });
   const uid = interaction.user.id;
-  const join = interaction.customId === "pt:join";
   p.going = p.going.filter((u) => u !== uid);
-  if (join) p.going.push(uid);
+  p.notGoing = (p.notGoing || []).filter((u) => u !== uid);
+  if (interaction.customId === "pt:join") p.going.push(uid); else p.notGoing.push(uid);
   saveFeatures();
   return interaction.update({ embeds: [playtestEmbed(p, interaction.guild)], components: [playtestRow(p)] });
 }
@@ -225,34 +274,37 @@ async function setTesterVc(guild, open) {
     : guild.channels.cache.find((c) => c.isVoiceBased() && /tester|playtest|testing/i.test(c.name));
   const tester = resolveRole(guild, "tester_role", ["tester", "testers", "playtester"]);
   if (!vc || !tester) return null;
-  await vc.permissionOverwrites.edit(tester.id, { ViewChannel: true, Connect: open }, { reason: open ? "playtest started" : "playtest ended" }).catch(() => {});
+  await vc.permissionOverwrites.edit(tester.id, { ViewChannel: true, Connect: open }, { reason: open ? "playtest starting" : "playtest ended" }).catch(() => {});
   return vc;
 }
 
-// Scheduler: 30-min reminder, open the VC at start, close it after the duration.
+// Scheduler: 30 min before → ping "I'm in" + testers with the playtest ping role, open the VC, post join info. End → feedback reminder.
 export async function runPlaytests(client) {
   for (const guild of client.guilds.cache.values()) {
     const all = featureData(guild.id, "playtests", {});
     for (const [msgId, p] of Object.entries(all)) {
       if (p.closed) { if (Date.now() - p.at > 14 * 86400000) { delete all[msgId]; saveFeatures(); } continue; }
       const ch = guild.channels.cache.get(p.channelId);
-      const tester = resolveRole(guild, "tester_role", ["tester", "testers", "playtester"]);
       if (!p.reminded && Date.now() >= p.at - 30 * 60000) {
-        p.reminded = true; saveFeatures();
-        const mentions = [tester ? `${tester}` : "", ...p.going.map((u) => `<@${u}>`)].filter(Boolean).join(" ");
-        await ch?.send({ content: `⏰ Playtest starts <t:${Math.floor(p.at / 1000)}:R>! ${mentions}`.slice(0, 1900), allowedMentions: { roles: tester ? [tester.id] : [], users: p.going } }).catch(() => {});
-      }
-      if (!p.opened && Date.now() >= p.at) {
-        p.opened = true; saveFeatures();
+        p.reminded = true; p.opened = true; saveFeatures();
+        const tester = resolveRole(guild, "tester_role", ["tester", "testers", "playtester"]);
+        const pingRole = resolveRole(guild, "playtest_ping_role", ["playtest ping"]);
+        // Testers who opted into playtest pings (both roles) — pinged individually so non-testers aren't
+        const members = pingRole ? (await guild.members.fetch().catch(() => guild.members.cache)).filter((m) => m.roles.cache.has(pingRole.id) && (!tester || m.roles.highest.position >= tester.position || m.roles.cache.has(tester.id))) : new Map();
+        const users = [...new Set([...p.going, ...[...members.keys()]])].slice(0, 90);
         const vc = await setTesterVc(guild, true);
-        await ch?.send({ content: `🧪 The playtest is **live**!${vc ? ` Join ${vc}` : ""}`, allowedMentions: { parse: [] } }).catch(() => {});
+        await ch?.send({ content: `⏰ Playtest starts <t:${Math.floor(p.at / 1000)}:R>!${vc ? ` ${vc} is open.` : ""}\n${users.map((u) => `<@${u}>`).join(" ")}`.slice(0, 1990), allowedMentions: { users } }).catch(() => {});
+        const builds = resolveChannel(guild, "test_builds_channel", ["test-builds"]);
+        const joinText = getSettings(guild.id).playtest_join_text;
+        if (builds) await builds.send({ embeds: [baseEmbed(COLORS.dark).setTitle(`🧪 Playtest${p.build ? ` — ${p.build}` : ""}`).setDescription(`${joinText || "Join the test place from the link pinned here."}${p.notes ? `\n\n**What to test:** ${p.notes}` : ""}\n\nStarts <t:${Math.floor(p.at / 1000)}:R>${vc ? ` · voice: ${vc}` : ""}`)] }).catch(() => {});
       }
-      if (p.opened && Date.now() >= p.at + p.durationMin * 60000) {
+      if (Date.now() >= p.at + p.durationMin * 60000) {
         p.closed = true; saveFeatures();
         await setTesterVc(guild, false);
         const msg = ch ? await ch.messages.fetch(msgId).catch(() => null) : null;
         if (msg) await msg.edit({ embeds: [playtestEmbed(p, guild)], components: [playtestRow(p)] }).catch(() => {});
-        await ch?.send("✅ Playtest finished — thanks for testing! Report bugs in the bug forum.").catch(() => {});
+        const fb = resolveChannels(guild, "playtest_feedback_channels", ["test-feedback", "test-bugs", "perf-reports"]).map((c) => `<#${c.id}>`).join(" · ");
+        await ch?.send(`✅ Playtest finished — thanks for testing!${fb ? ` Please post feedback: ${fb}` : ""}`).catch(() => {});
       }
     }
   }

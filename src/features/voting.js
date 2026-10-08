@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import { baseEmbed, COLORS } from "../commands/utils/embeds.js";
-import { featureData, saveFeatures, resolveChannel, isStaff } from "./config.js";
+import { featureData, saveFeatures, resolveChannel, resolveRole, isStaff, canManageRole } from "./config.js";
 import { getSettings } from "../storage/serverSettings.js";
 
 // ===================== SUGGESTIONS =====================
@@ -156,7 +156,8 @@ function pollRows(p) {
 
 export async function postPoll(channel, author, question, options, durationMs) {
   const p = { question, options, votes: {}, endsAt: durationMs ? Date.now() + durationMs : null, channelId: channel.id, author: author.username, ended: false };
-  const msg = await channel.send({ embeds: [pollEmbed(p, author.username)], components: pollRows(p) });
+  const ping = resolveRole(channel.guild, "poll_ping_role", ["poll ping"]);
+  const msg = await channel.send({ content: ping ? `${ping}` : undefined, embeds: [pollEmbed(p, author.username)], components: pollRows(p), allowedMentions: { roles: ping ? [ping.id] : [] } });
   featureData(channel.guild.id, "polls", {})[msg.id] = p;
   saveFeatures();
   return msg;
@@ -184,7 +185,39 @@ export async function closeExpiredPolls(client) {
       const ch = guild.channels.cache.get(p.channelId);
       const msg = ch ? await ch.messages.fetch(id).catch(() => null) : null;
       if (msg) await msg.edit({ embeds: [pollEmbed(p, p.author)], components: pollRows(p) }).catch(() => {});
+      if (p.sotw) await awardSotw(guild, p);
     }
+  }
+}
+
+// Screenshot of the Week: winner gets the winner role for 7 days + a hall-of-fame post
+async function awardSotw(guild, p) {
+  const counts = p.options.map((_, i) => Object.values(p.votes).filter((v) => v === i).length);
+  if (!counts.some((n) => n > 0)) return;
+  const win = p.sotw[counts.indexOf(Math.max(...counts))];
+  if (!win) return;
+  const role = resolveRole(guild, "sotw_winner_role", ["contest winner"]);
+  const member = await guild.members.fetch(win.userId).catch(() => null);
+  if (role && member && canManageRole(guild, role)) {
+    await member.roles.add(role, "Screenshot of the Week").catch(() => {});
+    featureData(guild.id, "tempRoles", []).push({ userId: win.userId, roleId: role.id, until: Date.now() + 7 * 86400000 });
+    saveFeatures();
+  }
+  const hof = resolveChannel(guild, "hall_of_fame_channel", ["hall-of-fame", "halloffame", "starboard"]);
+  if (hof) await hof.send({ content: `📸 Screenshot of the Week: <@${win.userId}>!`, embeds: [baseEmbed(COLORS.gold).setDescription(`[Jump to the post](${win.url})`).setImage(win.img)], allowedMentions: { users: [win.userId] } }).catch(() => {});
+}
+
+// Scheduler: remove temporary roles that expired
+export async function expireTempRoles(client) {
+  for (const guild of client.guilds.cache.values()) {
+    const list = featureData(guild.id, "tempRoles", []);
+    const keep = [];
+    for (const t of list) {
+      if (t.until > Date.now()) { keep.push(t); continue; }
+      const m = await guild.members.fetch(t.userId).catch(() => null);
+      if (m) await m.roles.remove(t.roleId, "temporary role expired").catch(() => {});
+    }
+    if (keep.length !== list.length) { list.length = 0; list.push(...keep); saveFeatures(); }
   }
 }
 

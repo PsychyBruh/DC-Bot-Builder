@@ -18,48 +18,66 @@ export async function fetchRobloxGame(universeId) {
   return { ...game, votes };
 }
 
+function findCategory(guild, ref) {
+  if (!ref) return null;
+  return guild.channels.cache.get(ref) || guild.channels.cache.find((c) => c.type === ChannelType.GuildCategory && c.name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "").includes(String(ref).toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")));
+}
+
 export async function updateRobloxStatus(guild) {
   const s = getSettings(guild.id);
   if (!s.roblox_universe_id) return;
-  let game;
-  try { game = await fetchRobloxGame(s.roblox_universe_id); } catch (err) { console.error(`roblox status (${guild.name}):`, err.message); return; }
   const state = featureData(guild.id, "robloxStatus", {});
-  const online = game.playing > 0;
+  let game = null;
+  try { game = await fetchRobloxGame(s.roblox_universe_id); } catch (err) { console.error(`roblox status (${guild.name}):`, err.message); }
+  // No data back = private / unavailable
+  const offline = !game;
+  const vcName = offline ? "🔴 Game offline" : `🟢 Players online: ${game.playing.toLocaleString()}`;
 
-  // Voice channel name (Discord allows ~2 renames / 10 min, so only rename when the text changes)
+  // Locked voice channel showing the count (Discord allows ~2 renames per 10 min)
   let vc = s.status_voice_channel ? guild.channels.cache.get(s.status_voice_channel) : null;
   if (!vc) {
+    const cat = findCategory(guild, s.status_category);
     vc = await guild.channels.create({
-      name: `${online ? "🟢" : "🔴"} Players online: ${game.playing.toLocaleString()}`,
-      type: ChannelType.GuildVoice,
-      position: 0,
+      name: vcName, type: ChannelType.GuildVoice, parent: cat?.id ?? null,
       permissionOverwrites: [{ id: guild.id, deny: [PermissionFlagsBits.Connect] }],
     }).catch(() => null);
-    if (vc) setSetting(guild.id, "status_voice_channel", vc.id);
-  } else {
-    const name = `${online ? "🟢" : "🔴"} Players online: ${game.playing.toLocaleString()}`;
-    if (vc.name !== name && Date.now() - (state.lastRename || 0) > 5 * 60000) {
-      state.lastRename = Date.now();
-      await vc.setName(name).catch(() => {});
-    }
+    if (vc) { setSetting(guild.id, "status_voice_channel", vc.id); await vc.setPosition(0).catch(() => {}); }
+  } else if (vc.name !== vcName && Date.now() - (state.lastRename || 0) > 5 * 60000) {
+    state.lastRename = Date.now();
+    await vc.setName(vcName).catch(() => {});
   }
 
-  // Status embed (edited in place)
+  // Game update detection → announce
+  if (game?.updated) {
+    if (state.lastUpdated && state.lastUpdated !== game.updated && settingOn(guild.id, "roblox_update_announce")) {
+      const out = resolveChannel(guild, "updates_channel", ["updates", "patch-notes", "announcements"]);
+      const ping = resolveRole(guild, "update_ping_role", ["update ping", "updates ping"]);
+      if (out) await out.send({ content: `🛠️ **${game.name}** was just updated${ping ? ` ${ping}` : ""}`, allowedMentions: { roles: ping ? [ping.id] : [] } }).catch(() => {});
+    }
+    state.lastUpdated = game.updated;
+  }
+
+  // Auto-updating status embed
   const ch = resolveChannel(guild, "status_channel", ["status", "game-status", "server-status"]);
-  if (!ch) return;
-  const likes = game.votes ? `${Math.round((game.votes.upVotes / Math.max(1, game.votes.upVotes + game.votes.downVotes)) * 100)}% 👍` : "—";
-  const embed = baseEmbed(online ? COLORS.success : COLORS.danger)
-    .setTitle(`${online ? "🟢" : "🔴"} ${game.name}`)
-    .setURL(`https://www.roblox.com/games/${game.rootPlaceId}`)
-    .addFields(
-      { name: "Players online", value: game.playing.toLocaleString(), inline: true },
-      { name: "Visits", value: game.visits.toLocaleString(), inline: true },
-      { name: "Favorites", value: (game.favoritedCount || 0).toLocaleString(), inline: true },
-      { name: "Rating", value: likes, inline: true },
-      { name: "Max players", value: String(game.maxPlayers), inline: true },
-      { name: "Last updated", value: `<t:${Math.floor(new Date(game.updated).getTime() / 1000)}:R>`, inline: true },
-    )
-    .setFooter({ text: "Updates every few minutes" });
+  if (!ch) { saveFeatures(); return; }
+  let embed;
+  if (offline) {
+    embed = baseEmbed(COLORS.danger).setTitle("🔴 Game offline").setDescription("The game is private or unavailable right now.").setFooter({ text: "Updates every 5 minutes" });
+  } else {
+    const likes = game.votes ? `${Math.round((game.votes.upVotes / Math.max(1, game.votes.upVotes + game.votes.downVotes)) * 100)}% 👍` : "—";
+    embed = baseEmbed(COLORS.success)
+      .setTitle(`🟢 ${game.name}`)
+      .setURL(`https://www.roblox.com/games/${game.rootPlaceId}`)
+      .addFields(
+        { name: "Status", value: "Online", inline: true },
+        { name: "Players online", value: game.playing.toLocaleString(), inline: true },
+        { name: "Visits", value: game.visits.toLocaleString(), inline: true },
+        { name: "Favourites", value: (game.favoritedCount || 0).toLocaleString(), inline: true },
+        { name: "Rating", value: likes, inline: true },
+        { name: "Last update", value: `<t:${Math.floor(new Date(game.updated).getTime() / 1000)}:R>`, inline: true },
+      )
+      .setFooter({ text: "Updates every 5 minutes" });
+  }
   let msg = state.messageId ? await ch.messages.fetch(state.messageId).catch(() => null) : null;
   if (msg) await msg.edit({ embeds: [embed] }).catch(() => {});
   else {
@@ -150,8 +168,17 @@ export async function runSchedules(client) {
       const ch = guild.channels.cache.get(s.channelId);
       if (!ch) continue;
       if (s.kind === "sotw") { await screenshotOfTheWeek(guild, ch); continue; }
-      const role = s.ping ? guild.roles.cache.get(s.ping) : null;
-      await ch.send({ content: role ? `${role}` : undefined, embeds: [baseEmbed(COLORS.info).setDescription(s.message)], allowedMentions: { roles: role ? [role.id] : [] } }).catch(() => {});
+      const roles = [...(s.pings || []), ...(s.ping ? [s.ping] : [])].map((id) => guild.roles.cache.get(id)).filter(Boolean);
+      const content = roles.length ? roles.map((r) => `${r}`).join(" ") : undefined;
+      if (s.kind === "repost_latest") {
+        // Re-post the newest message from a source channel (e.g. the event calendar)
+        const src = guild.channels.cache.get(s.sourceChannelId);
+        const latest = src ? (await src.messages.fetch({ limit: 1 }).catch(() => null))?.first() : null;
+        if (!latest) continue;
+        await ch.send({ content: [content, s.message].filter(Boolean).join("\n") || undefined, embeds: latest.embeds.length ? latest.embeds.map((e) => e.toJSON()) : [baseEmbed(COLORS.dark).setDescription(latest.content || "—")], allowedMentions: { roles: roles.map((r) => r.id) } }).catch(() => {});
+        continue;
+      }
+      await ch.send({ content, embeds: [baseEmbed(COLORS.dark).setDescription(s.message)], allowedMentions: { roles: roles.map((r) => r.id) } }).catch(() => {});
     }
   }
 }
@@ -176,12 +203,16 @@ export async function screenshotOfTheWeek(guild, postChannel) {
     before = batch.last().id;
   }
   if (candidates.length < 2) return;
-  const top = candidates.sort((a, b) => b.score - a.score).slice(0, 5);
+  // Rank by ⭐ reactions first, then all reactions
+  const stars = (m) => m.reactions.cache.find((r) => r.emoji.name === (getSettings(guild.id).starboard_emoji || "⭐"))?.count || 0;
+  const top = candidates.sort((a, b) => stars(b.m) - stars(a.m) || b.score - a.score).slice(0, 5);
   await postChannel.send({ embeds: [baseEmbed(COLORS.gold).setTitle("📸 Screenshot of the Week — vote!")
     .setDescription(top.map((c, i) => `**${i + 1}.** by ${c.m.author} — [view](${c.m.url})`).join("\n"))
     .setImage(top[0].img.url)], allowedMentions: { parse: [] } }).catch(() => {});
   const { postPoll } = await import("./voting.js");
-  await postPoll(postChannel, { username: "Screenshot of the Week" }, "Which screenshot wins this week?", top.map((c, i) => `#${i + 1} ${c.m.member?.displayName || c.m.author.username}`.slice(0, 80)), 2 * 86400000);
+  const poll = await postPoll(postChannel, { username: "Screenshot of the Week" }, "Which screenshot wins this week?", top.map((c, i) => `#${i + 1} ${c.m.member?.displayName || c.m.author.username}`.slice(0, 80)), 86400000);
+  const p = featureData(guild.id, "polls", {})[poll.id];
+  if (p) { p.sotw = top.map((c) => ({ userId: c.m.author.id, url: c.m.url, img: c.img.url })); saveFeatures(); }
 }
 
 // ===================== MEMBER COUNT CHANNELS =====================
@@ -192,7 +223,10 @@ export async function counterValue(guild, c) {
   const members = guild.members.cache.size >= guild.memberCount * 0.9 ? guild.members.cache : await guild.members.fetch().catch(() => guild.members.cache);
   if (c.kind === "humans") return members.filter((m) => !m.user.bot).size;
   if (c.kind === "bots") return members.filter((m) => m.user.bot).size;
-  if (c.kind === "role") return guild.roles.cache.get(c.roleId)?.members.size ?? 0;
+  if (c.kind === "role" || c.kind === "roles") {
+    const ids = c.roleIds?.length ? c.roleIds : [c.roleId];
+    return members.filter((m) => ids.some((id) => m.roles.cache.has(id))).size;
+  }
   return guild.memberCount;
 }
 
@@ -206,13 +240,17 @@ export async function updateCounters(guild) {
   }
 }
 
-export async function createCounter(guild, kind, template, roleId) {
-  const c = { kind, template, roleId: roleId || null };
+export async function createCounter(guild, kind, template, roleIds, categoryRef) {
+  const ids = Array.isArray(roleIds) ? roleIds : roleIds ? [roleIds] : [];
+  const c = { kind: ids.length > 1 ? "roles" : kind, template, roleId: ids[0] || null, roleIds: ids };
+  const cat = findCategory(guild, categoryRef || getSettings(guild.id).counter_category);
   const ch = await guild.channels.create({
     name: template.replace("{count}", (await counterValue(guild, c)).toLocaleString()),
     type: ChannelType.GuildVoice,
+    parent: cat?.id ?? null,
     permissionOverwrites: [{ id: guild.id, deny: [PermissionFlagsBits.Connect] }],
   });
+  await ch.setPosition(0).catch(() => {});
   featureData(guild.id, "counters", []).push({ ...c, channelId: ch.id });
   saveFeatures();
   return ch;
@@ -228,6 +266,8 @@ export async function runBirthdays(client) {
     if (!Object.keys(bdays).length) continue;
     const state = featureData(guild.id, "birthdayState", { date: null, given: [] });
     if (state.date === today) continue;
+    const hour = Number.isFinite(parseInt(getSettings(guild.id).birthday_hour, 10)) ? parseInt(getSettings(guild.id).birthday_hour, 10) : 12;
+    if (now.getUTCHours() < hour) continue;
     const role = resolveRole(guild, "birthday_role", ["birthday", "birthday 🎂"]);
     // Take yesterday's birthday role away
     for (const uid of state.given || []) {
@@ -248,7 +288,7 @@ export async function runBirthdays(client) {
     saveFeatures();
     if (!present.length) continue;
     const ch = resolveChannel(guild, "birthday_channel", ["birthdays", "birthday", "general"]);
-    if (ch) await ch.send({ content: `🎂 Happy birthday ${present.map((u) => `<@${u}>`).join(", ")}! 🎉`, allowedMentions: { users: present } }).catch(() => {});
+    if (ch) for (const u of present) await ch.send({ content: `🎂 Happy birthday <@${u}>!`, allowedMentions: { users: [u] } }).catch(() => {});
   }
 }
 
@@ -263,19 +303,38 @@ export async function runWeeklyReport(client) {
     const last = rollWeek(guild.id);
     const ch = resolveChannel(guild, "report_channel", ["admin-chat", "staff-chat", "admin"]);
     if (!ch) continue;
-    const top = Object.entries(last.messages || {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const total = Object.values(last.messages || {}).reduce((a, b) => a + b, 0);
-    await ch.send({ embeds: [baseEmbed(COLORS.primary).setTitle(`📊 Weekly report — ${guild.name}`)
-      .setDescription(`Week of <t:${Math.floor(last.weekStart / 1000)}:D>`)
+    const list = (obj, n = 10, fmt = (k, v) => `${k} — ${v}`) => Object.entries(obj || {}).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v], i) => `${i + 1}. ${fmt(k, v)}`).join("\n") || "—";
+    const avgResp = last.responseTimes?.length ? last.responseTimes.reduce((a, b) => a + b, 0) / last.responseTimes.length : null;
+    const fmtDur = (ms) => (ms < 3600000 ? `${Math.round(ms / 60000)} min` : `${(ms / 3600000).toFixed(1)} h`);
+    // warns / timeouts / bans per staff member
+    const staffRows = {};
+    for (const [k, n] of Object.entries(last.modActions || {})) {
+      const [uid, act] = k.split(":");
+      staffRows[uid] ??= {};
+      staffRows[uid][act] = n;
+    }
+    const staffText = Object.entries(staffRows).slice(0, 15).map(([uid, a]) => `<@${uid}> — ${Object.entries(a).map(([k, n]) => `${n} ${k}${n === 1 ? "" : "s"}`).join(", ")}`).join("\n") || "—";
+    const { topForumSuggestions } = await import("./forumSuggestions.js");
+    const sugs = topForumSuggestions(guild.id, last.weekStart).map(([tid, x], i) => `${i + 1}. <#${tid}> — ✅ ${x.up.length} · ❌ ${x.down.length}`).join("\n") || "—";
+    const e1 = baseEmbed(COLORS.dark).setTitle(`📊 Weekly report — ${guild.name}`).setDescription(`Week of <t:${Math.floor(last.weekStart / 1000)}:D>`)
       .addFields(
         { name: "📥 Joins", value: String(last.joins || 0), inline: true },
         { name: "📤 Leaves", value: String(last.leaves || 0), inline: true },
-        { name: "📈 Net", value: String((last.joins || 0) - (last.leaves || 0)), inline: true },
-        { name: "💬 Messages", value: total.toLocaleString(), inline: true },
-        { name: "🎫 Tickets closed", value: String(last.ticketsClosed || 0), inline: true },
-        { name: "🛡️ AutoMod hits", value: String(last.automodHits || 0), inline: true },
-        { name: "⚠️ Warnings", value: String(last.warnings || 0), inline: true },
-        { name: "🏆 Most active", value: top.length ? top.map(([u, n], i) => `${i + 1}. <@${u}> — ${n}`).join("\n") : "—" },
-      )], allowedMentions: { parse: [] } }).catch(() => {});
+        { name: "📈 Net growth", value: String((last.joins || 0) - (last.leaves || 0)), inline: true },
+        { name: "✅ Verifications", value: String(last.verifications || 0), inline: true },
+        { name: "💬 Messages", value: Object.values(last.messages || {}).reduce((a, b) => a + b, 0).toLocaleString(), inline: true },
+        { name: "🚨 Raid triggers", value: String(last.raids || 0), inline: true },
+        { name: "🏆 Most active (XP gained)", value: list(last.xpGained, 10, (uid, v) => `<@${uid}> — ${v.toLocaleString()} XP`) },
+      );
+    const e2 = baseEmbed(COLORS.dark)
+      .addFields(
+        { name: "🎫 Tickets opened", value: list(last.ticketsOpenedByType, 10), inline: true },
+        { name: "🔒 Tickets closed", value: list(last.ticketsClosedByType, 10), inline: true },
+        { name: "⏱️ Avg first response", value: avgResp ? fmtDur(avgResp) : "—", inline: true },
+        { name: "⚖️ Staff actions", value: staffText.slice(0, 1024) },
+        { name: "🛡️ AutoMod hits by rule", value: list(last.automodByRule, 10) },
+        { name: "💡 Top suggestions", value: sugs.slice(0, 1024) },
+      );
+    await ch.send({ embeds: [e1, e2], allowedMentions: { parse: [] } }).catch(() => {});
   }
 }

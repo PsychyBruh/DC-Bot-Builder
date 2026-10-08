@@ -7,6 +7,7 @@ function every(ms, name, fn) {
 
 export function startFeatureScheduler(client) {
   every(60_000, "polls", async () => (await import("./voting.js")).closeExpiredPolls(client));
+  every(10 * 60_000, "temp-roles", async () => (await import("./voting.js")).expireTempRoles(client));
   every(60_000, "raid-expiry", async () => (await import("./safety.js")).checkLockdownExpiry(client));
   every(60_000, "playtests", async () => (await import("./roblox.js")).runPlaytests(client));
   every(60_000, "schedules", async () => (await import("./automation.js")).runSchedules(client));

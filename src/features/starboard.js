@@ -1,5 +1,5 @@
 import { baseEmbed, COLORS } from "../commands/utils/embeds.js";
-import { featureData, saveFeatures, resolveChannel } from "./config.js";
+import { featureData, saveFeatures, resolveChannel, resolveChannels } from "./config.js";
 import { getSettings } from "../storage/serverSettings.js";
 
 // Settings: starboard_channel, starboard_threshold (default 3), starboard_emoji (default ⭐),
@@ -14,6 +14,9 @@ export async function handleStarReaction(reaction, user) {
   if ((reaction.emoji.id || reaction.emoji.name) !== (emoji.match(/:(\d+)>$/)?.[1] || emoji)) return;
   const board = resolveChannel(guild, "starboard_channel", ["starboard", "hall-of-fame", "halloffame", "best-of"]);
   if (!board || message.channelId === board.id || message.author?.bot) return;
+  // Optional: only some channels feed the starboard
+  const sources = resolveChannels(guild, "starboard_source_channels", []);
+  if (getSettings(guild.id).starboard_source_channels && !sources.some((c) => c.id === message.channelId || c.id === message.channel.parentId)) return;
   if (settings.starboard_disabled === "true") return;
 
   const media = [...message.attachments.values()].find((a) => /^(image|video)\//.test(a.contentType || "")) ||

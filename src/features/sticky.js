@@ -4,9 +4,9 @@ import { featureData, saveFeatures } from "./config.js";
 // featureData "sticky": { [channelId]: { text, lastMsgId } }
 const pending = new Map(); // channelId -> timeout (debounce bursts of messages)
 
-export function setSticky(guildId, channelId, text) {
+export function setSticky(guildId, channelId, text, every = 1) {
   const s = featureData(guildId, "sticky", {});
-  s[channelId] = { text, lastMsgId: s[channelId]?.lastMsgId || null };
+  s[channelId] = { text, every: Math.max(1, parseInt(every, 10) || 1), count: 0, lastMsgId: s[channelId]?.lastMsgId || null };
   saveFeatures();
 }
 
@@ -42,6 +42,10 @@ export function handleStickyMessage(message) {
   const s = featureData(message.guild.id, "sticky", {})[message.channelId];
   if (!s || message.id === s.lastMsgId) return;
   if (message.author.id === message.client.user.id && message.embeds[0]?.title === "📌 Pinned note") return;
+  // Re-post only after every N messages (keeps busy channels from constant reposts)
+  s.count = (s.count || 0) + 1;
+  if (s.count < (s.every || 1)) return;
+  s.count = 0;
   clearTimeout(pending.get(message.channelId));
   pending.set(message.channelId, setTimeout(() => {
     pending.delete(message.channelId);

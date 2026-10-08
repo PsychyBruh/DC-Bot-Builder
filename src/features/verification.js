@@ -222,7 +222,7 @@ export async function handleCaptchaModal(interaction) {
     await grant(interaction, role);
     return interaction.reply({ content: `✅ Verified with your linked Roblox account! You now have **${role.name}**.`, ephemeral: true });
   }
-  const res = await startLink(interaction.user.id, interaction.fields.getTextInputValue("roblox").trim()).catch((e) => ({ error: `Roblox didn't respond (${e.message}).` }));
+  const res = await startLink(interaction.user.id, interaction.fields.getTextInputValue("roblox").trim(), interaction.guildId).catch((e) => ({ error: `Roblox didn't respond (${e.message}).` }));
   if (res.error) return interaction.reply({ content: `❌ ${res.error}`, ephemeral: true });
   p.stage = "roblox";
   p.at = Date.now();

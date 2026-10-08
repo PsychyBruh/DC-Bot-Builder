@@ -7,6 +7,11 @@ const S = (description, extra = {}) => ({ type: "string", description, ...extra 
 
 export const FEATURE_TOOLS = [
   {
+    name: "build_server_blueprint",
+    description: "For a long full-server spec (many roles/channels/systems): turn it into a saved build plan in one step. The user then reviews it and types !blueprint build. Pass the user's full spec text unchanged.",
+    input_schema: { type: "object", properties: { request: S("The user's complete server specification") }, required: ["request"] },
+  },
+  {
     name: "configure_server",
     description: `Set or clear per-server feature settings (channels, roles, thresholds, toggles). Channels/roles can be given by name, #mention or ID. Pass value "" to clear. Settings:\n${describeSettings()}`,
     input_schema: {
@@ -90,7 +95,7 @@ export const FEATURE_TOOLS = [
   {
     name: "set_sticky_message",
     description: "Keep a note at the bottom of a channel (re-posted after new messages). Empty text removes it.",
-    input_schema: { type: "object", properties: { channel: S("Channel name or ID"), text: S("Sticky text, or empty to remove") }, required: ["channel", "text"] },
+    input_schema: { type: "object", properties: { channel: S("Channel name or ID"), text: S("Sticky text, or empty to remove"), every: { type: "integer", description: "Re-post after this many messages (default 1)" } }, required: ["channel", "text"] },
   },
   {
     name: "add_scheduled_post",
@@ -104,7 +109,9 @@ export const FEATURE_TOOLS = [
         channel: S("Channel name or ID"),
         message: S("Text to post (kind=post)"),
         ping_role: S("Optional role to ping"),
-        kind: S("post | sotw", { enum: ["post", "sotw"] }),
+        ping_roles: { type: "array", items: { type: "string" }, description: "Roles to ping" },
+        kind: S("post | sotw | repost_latest", { enum: ["post", "sotw", "repost_latest"] }),
+        source_channel: S("repost_latest: channel whose newest message is re-posted"),
       },
       required: ["every", "time", "channel"],
     },
@@ -112,7 +119,7 @@ export const FEATURE_TOOLS = [
   {
     name: "create_counter_channel",
     description: "Create a locked voice channel that shows a live count, e.g. '👥 Members: {count}'.",
-    input_schema: { type: "object", properties: { kind: S("members | humans | bots | boosts | role", { enum: ["members", "humans", "bots", "boosts", "role"] }), template: S("Name with {count}"), role: S("kind=role: role to count") }, required: ["kind"] },
+    input_schema: { type: "object", properties: { kind: S("members | humans | bots | boosts | role | roles", { enum: ["members", "humans", "bots", "boosts", "role", "roles"] }), template: S("Name with {count}"), role: S("kind=role: role to count"), roles: { type: "array", items: { type: "string" }, description: "kind=roles: count members with ANY of these roles" }, category: S("Category to put it in") }, required: ["kind"] },
   },
   {
     name: "configure_roblox",
@@ -147,6 +154,12 @@ const fail = (message) => ({ success: false, message, beforeState: null });
 
 export async function executeFeatureTool(guild, name, p) {
   switch (name) {
+    case "build_server_blueprint": {
+      const { generateBlueprint, saveBlueprint, summarize } = await import("./blueprint.js");
+      const bp = await generateBlueprint(p.request || "");
+      saveBlueprint(guild.id, bp);
+      return ok(`Blueprint saved — ${summarize(bp).replace(/\*\*/g, "").replace(/\n/g, " | ")}. Tell the user to review it with \`!blueprint show\` and build it with \`!blueprint build\` (move the bot's role to the top first).`);
+    }
     case "configure_server": {
       const done = [], problems = [];
       for (const [key, raw] of Object.entries(p.settings || {})) {
@@ -263,7 +276,7 @@ export async function executeFeatureTool(guild, name, p) {
       if (!ch) return fail(`Channel "${p.channel}" not found`);
       const { setSticky, removeSticky, postStickyNow } = await import("./sticky.js");
       if (!p.text) { removeSticky(guild.id, ch.id); return ok(`Sticky removed from #${ch.name}`); }
-      setSticky(guild.id, ch.id, p.text.slice(0, 3000));
+      setSticky(guild.id, ch.id, p.text.slice(0, 3000), p.every || 1);
       await postStickyNow(ch);
       return ok(`Sticky set in #${ch.name}`);
     }
@@ -272,17 +285,19 @@ export async function executeFeatureTool(guild, name, p) {
       if (!ch) return fail(`Channel "${p.channel}" not found`);
       if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(p.time || "")) return fail("time must be HH:MM (UTC)");
       const role = p.ping_role ? findRole(guild, p.ping_role) : null;
+      const pings = (p.ping_roles || []).map((n) => findRole(guild, n)?.id).filter(Boolean);
+      const src = p.source_channel ? findChannel(guild, p.source_channel) : null;
       const { addSchedule } = await import("./automation.js");
-      const id = addSchedule(guild.id, { every: p.every, day: p.every === "weekly" ? String(p.day || "sun").slice(0, 3).toLowerCase() : p.day || null, time: p.time, channelId: ch.id, message: p.message || "", ping: role?.id || null, kind: p.kind || "post" });
+      const id = addSchedule(guild.id, { every: p.every, day: p.every === "weekly" ? String(p.day || "sun").slice(0, 3).toLowerCase() : p.day || null, time: p.time, channelId: ch.id, message: p.message || "", ping: role?.id || null, pings, sourceChannelId: src?.id || null, kind: p.kind || "post" });
       return ok(`Scheduled ${id}: ${p.every} ${p.day || ""} ${p.time} UTC in #${ch.name}`);
     }
     case "create_counter_channel": {
-      const role = p.role ? findRole(guild, p.role) : null;
-      if (p.kind === "role" && !role) return fail("kind=role needs a role");
+      const roleIds = [...(p.role ? [findRole(guild, p.role)?.id] : []), ...(p.roles || []).map((n) => findRole(guild, n)?.id)].filter(Boolean);
+      if ((p.kind === "role" || p.kind === "roles") && !roleIds.length) return fail("kind=role/roles needs role(s)");
       const { createCounter } = await import("./automation.js");
-      let template = p.template || { members: "👥 Members: {count}", humans: "🙂 Humans: {count}", bots: "🤖 Bots: {count}", boosts: "🚀 Boosts: {count}", role: `${role?.name}: {count}` }[p.kind];
+      let template = p.template || { members: "👥 Members: {count}", humans: "🙂 Humans: {count}", bots: "🤖 Bots: {count}", boosts: "🚀 Boosts: {count}", role: "Role: {count}", roles: "Roles: {count}" }[p.kind];
       if (!template.includes("{count}")) template += " {count}";
-      const ch = await createCounter(guild, p.kind, template.slice(0, 90), role?.id);
+      const ch = await createCounter(guild, p.kind === "roles" ? "role" : p.kind, template.slice(0, 90), roleIds, p.category);
       return ok(`Counter channel created: ${ch.name}`);
     }
     case "configure_roblox": {

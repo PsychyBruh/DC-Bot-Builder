@@ -1,6 +1,8 @@
 import { applyCooldown } from "../utils/cooldown.js";
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 import { postPoll } from "../../features/voting.js";
+import { getSettings } from "../../storage/serverSettings.js";
+import { isStaff, resolveChannel } from "../../features/config.js";
 import { parseDuration } from "./giveaway.js";
 
 export const name = "poll";
@@ -9,6 +11,7 @@ export const usage = "!poll [duration] \"question\" \"opt1\" \"opt2\" ...   or  
 export const category = "utility";
 
 export async function execute(message, args) {
+  if (getSettings(message.guild.id).poll_staff_only === "true" && !isStaff(message.member)) return message.reply("Only staff can create polls here.");
   if (!(await applyCooldown(message, "poll", "social"))) return;
   let duration = null;
   if (args[0] && parseDuration(args[0])) duration = parseDuration(args.shift());
@@ -21,6 +24,7 @@ export async function execute(message, args) {
   const [question, ...options] = parts;
   if (options.length > 10) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Max 10 options")] });
   if (duration && duration > 30 * 86400000) return message.reply({ embeds: [baseEmbed(COLORS.danger).setDescription("❌ Polls can run at most 30 days.")] });
-  await postPoll(message.channel, message.author, question.slice(0, 250), options.map((o) => o.slice(0, 80)), duration);
+  const target = resolveChannel(message.guild, "poll_channel", []) || message.channel;
+  await postPoll(target, message.author, question.slice(0, 250), options.map((o) => o.slice(0, 80)), duration);
   if (message.deletable) await message.delete().catch(() => {});
 }
