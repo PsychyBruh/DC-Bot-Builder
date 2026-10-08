@@ -320,7 +320,13 @@ export async function buildBlueprint(guild, bp, onProgress = async () => {}) {
     };
     try {
       const same = existing?.find((r) => r.name === data.name) || (triggerType !== 1 ? existing?.find((r) => r.triggerType === triggerType) : null);
-      if (same) await same.edit(data); else await guild.autoModerationRules.create(data);
+      let edited = false;
+      if (same) {
+        // trigger type can't be changed on an existing rule; if the edit fails (e.g. Discord's default rule), create our own
+        const { triggerType: _t, eventType: _e, ...editData } = data;
+        edited = await same.edit(editData).then(() => true, () => false);
+      }
+      if (!edited) await guild.autoModerationRules.create(data);
     } catch (err) { warnings.add(`AutoMod "${a.name}": ${err.message}`); }
   }
 

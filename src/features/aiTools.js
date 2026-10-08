@@ -1,4 +1,5 @@
 // Tools that let the !chat AI configure every server feature from a plain-English prompt.
+import { ChannelType } from "discord.js";
 import { SETTING_KEYS, describeSettings } from "./settingsKeys.js";
 import { getSettings, setSetting, removeSetting } from "../storage/serverSettings.js";
 import { featureData, saveFeatures, canManageRole } from "./config.js";
@@ -276,6 +277,13 @@ export async function executeFeatureTool(guild, name, p) {
       if (!ch) return fail(`Channel "${p.channel}" not found`);
       const { setSticky, removeSticky, postStickyNow } = await import("./sticky.js");
       if (!p.text) { removeSticky(guild.id, ch.id); return ok(`Sticky removed from #${ch.name}`); }
+      // Forums can't hold messages — put the text in the post guidelines instead
+      if (ch.type === ChannelType.GuildForum) {
+        const text = p.text.slice(0, 4096);
+        if (!(ch.topic || "").includes(text)) await ch.setTopic([ch.topic, text].filter(Boolean).join("\n\n").slice(0, 4096));
+        return ok(`#${ch.name} is a forum, so the text was added to its post guidelines`);
+      }
+      if (typeof ch.send !== "function") return fail(`#${ch.name} can't hold messages`);
       setSticky(guild.id, ch.id, p.text.slice(0, 3000), p.every || 1);
       await postStickyNow(ch);
       return ok(`Sticky set in #${ch.name}`);
