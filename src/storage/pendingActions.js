@@ -65,9 +65,15 @@ export function getPendingVoteByGuild(guildId) {
   return null;
 }
 
-export function addApproval(voteKey, userId) {
+// isOwner: the server owner's approval passes the vote on its own
+export function addApproval(voteKey, userId, isOwner = false) {
   const entry = pendingVotes.get(voteKey);
   if (!entry) return null;
+  if (isOwner) {
+    if (!entry.approvedBy.includes(userId)) entry.approvedBy.push(userId);
+    pendingVotes.delete(voteKey);
+    return { approved: true, entry };
+  }
   if (entry.approvedBy.includes(userId)) return { alreadyApproved: true, entry };
   entry.approvedBy.push(userId);
   saveLine("pend", voteKey, entry);

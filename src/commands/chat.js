@@ -55,7 +55,7 @@ export async function execute(message, args) {
   if (isConfirm) {
     const activeVote = getPendingVoteByGuild(guildId);
     if (activeVote) {
-      const voteResult = addApproval(activeVote.key, userId);
+      const voteResult = addApproval(activeVote.key, userId, userId === message.guild.ownerId);
       if (!voteResult) {
         await message.reply("That vote has expired.");
         return;
