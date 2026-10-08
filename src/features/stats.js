@@ -10,7 +10,24 @@ function currentWeekStart() {
 export function weekStats(guildId) {
   const s = featureData(guildId, "stats", {});
   if (!s.weekStart) Object.assign(s, { weekStart: currentWeekStart(), joins: 0, leaves: 0, messages: {}, ticketsClosed: 0, automodHits: 0, warnings: 0 });
+  s.xpGained ??= {};
   return s;
+}
+
+// Nested counters, e.g. bumpMap(g, "modActions", "<staffId>:warn")
+export function bumpMap(guildId, key, sub, n = 1) {
+  const s = weekStats(guildId);
+  s[key] ??= {};
+  s[key][sub] = (s[key][sub] || 0) + n;
+  saveFeatures();
+}
+
+export function recordResponse(guildId, ms) {
+  const s = weekStats(guildId);
+  s.responseTimes ??= [];
+  s.responseTimes.push(ms);
+  if (s.responseTimes.length > 500) s.responseTimes.shift();
+  saveFeatures();
 }
 
 export function bump(guildId, key, n = 1) {
@@ -40,7 +57,8 @@ export function rollWeek(guildId) {
   flushMessageCounts();
   const s = weekStats(guildId);
   const snapshot = JSON.parse(JSON.stringify(s));
-  Object.assign(s, { weekStart: currentWeekStart(), joins: 0, leaves: 0, messages: {}, ticketsClosed: 0, automodHits: 0, warnings: 0 });
+  for (const k of Object.keys(s)) delete s[k];
+  Object.assign(s, { weekStart: currentWeekStart(), joins: 0, leaves: 0, messages: {}, ticketsClosed: 0, automodHits: 0, warnings: 0, xpGained: {} });
   saveFeatures();
   return snapshot;
 }

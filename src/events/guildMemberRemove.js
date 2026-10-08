@@ -15,6 +15,10 @@ export async function execute(member) {
   // Was it a kick?
   const kick = await findExecutor(guild, AuditLogEvent.MemberKick, member.id);
   if (kick) {
+    const { recordDestructive } = await import("../features/safety.js");
+    await recordDestructive(guild, kick.executor, "kick", `kicked ${tag}`);
+    const { bumpMap } = await import("../features/stats.js");
+    bumpMap(guild.id, "modActions", `${kick.executor.id}:kick`);
     await logMod(guild, baseEmbed(COLORS.danger)
       .setTitle("👢 Member kicked")
       .setDescription(`**User:** <@${member.id}> (${tag})\n**By:** ${kick.executor}\n**Reason:** ${kick.reason || "none given"}`)

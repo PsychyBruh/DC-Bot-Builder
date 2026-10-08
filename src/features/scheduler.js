@@ -14,7 +14,7 @@ export function startFeatureScheduler(client) {
   every(5 * 60_000, "birthdays", async () => (await import("./automation.js")).runBirthdays(client));
   every(5 * 60_000, "weekly-report", async () => (await import("./automation.js")).runWeeklyReport(client));
   every(5 * 60_000, "leaderboards", async () => (await import("./roblox.js")).runDailyLeaderboards(client));
-  every(6 * 60_000, "roblox-status", async () => {
+  every(5 * 60_000, "roblox-status", async () => {
     const { updateRobloxStatus } = await import("./automation.js");
     for (const g of client.guilds.cache.values()) await updateRobloxStatus(g);
   });
@@ -25,7 +25,10 @@ export function startFeatureScheduler(client) {
   every(60 * 60_000, "inactive-tickets", async () => (await import("./clean.js")).checkInactiveTickets(client));
   every(60 * 60_000, "unverified-kick", async () => (await import("./verification.js")).kickUnverified(client));
   every(60 * 60_000, "forum-tidy", async () => (await import("./clean.js")).tidyForums(client));
-  every(24 * 60 * 60_000, "achievements", async () => (await import("./roblox.js")).syncAllAchievements(client));
+  every(30 * 60_000, "achievements", async () => (await import("./roblox.js")).syncAllAchievements(client));
+  every(5 * 60_000, "voice-xp", async () => (await import("./levels.js")).runVoiceXp(client));
+  every(15 * 60_000, "endpoint-leaderboards", async () => (await import("./roblox.js")).runEndpointLeaderboards(client));
+  every(6 * 60 * 60_000, "snapshots", async () => (await import("./snapshots.js")).snapshotAll(client));
 
   const tick = () => {
     const now = Date.now();

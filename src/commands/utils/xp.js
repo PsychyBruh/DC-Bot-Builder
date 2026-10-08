@@ -7,6 +7,12 @@ export async function handleXp(message) {
   if (message.content.length < 2) return;
   const now = Date.now();
   const last = lastXp.get(message.author.id);
+  // Server XP has its own per-server cooldown/amounts — handle it before the global 60 s gate
+  if (message.guild && last && now - last < 60_000) {
+    const { addGuildXp } = await import("../../features/levels.js");
+    await addGuildXp(message, null, activeBooster(message.author.id, "xp") ? 2 : 1);
+    return;
+  }
   if (last && now - last < 60_000) return;
   lastXp.set(message.author.id, now);
   if (lastXp.size > 5000) {
@@ -19,6 +25,6 @@ export async function handleXp(message) {
   addXp(message.author.id, xpGain);
   if (message.guild) {
     const { addGuildXp } = await import("../../features/levels.js");
-    await addGuildXp(message, xpGain);
+    await addGuildXp(message, xpGain, activeBooster(message.author.id, "xp") ? 2 : 1);
   }
 }

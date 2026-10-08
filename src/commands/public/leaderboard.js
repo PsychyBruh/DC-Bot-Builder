@@ -1,3 +1,4 @@
+import { getSettings } from "../../storage/serverSettings.js";
 import { baseEmbed, COLORS, EMOJIS } from "../utils/embeds.js";
 import { getAllUsers, getUsersByGuild } from "../../storage/users.js";
 import { PROPERTY_MAP } from "../../storage/economy.js";
@@ -17,8 +18,13 @@ async function netWorthFor(user) {
   return balance + shareValue + propValue;
 }
 
-export async function execute(message) {
+export async function execute(message, args) {
   const guild = message.guild;
+  // Servers can make !leaderboard show server XP instead of coins
+  if (guild && getSettings(guild.id).leaderboard_mode === "xp") {
+    const lb = await import("./level-leaderboard.js");
+    return lb.execute(message, args);
+  }
 
   // Primary source: users seen in this guild (fresh per use, always accurate).
   if (!guild) return message.reply("This command only works in a server.");

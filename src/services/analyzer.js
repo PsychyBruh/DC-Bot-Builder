@@ -57,7 +57,7 @@ export async function analyzeGuild(guild) {
   const context = {
     s: guild.name,
     mc: guild.memberCount,
-    o: "812812088502255636",
+    o: guild.ownerId,
     roles,
     channels,
     emojis,

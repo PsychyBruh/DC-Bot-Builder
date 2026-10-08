@@ -1,4 +1,3 @@
-import { AttachmentBuilder } from "discord.js";
 import { getSettings } from "../storage/serverSettings.js";
 import { getCachedInvites, cacheInvites } from "../storage/inviteCache.js";
 import { resolveChannel, resolveRole } from "../features/config.js";
@@ -9,17 +8,14 @@ import { onMemberJoinRaidCheck } from "../features/safety.js";
 
 export const name = "guildMemberAdd";
 
-// Defaults for the original server; other servers can set invite_role_code / invite_role via settings.
-const DEFAULT_INVITE = "qMM6Cm4bjV";
-const DEFAULT_INVITE_ROLE = "1519434722327924797";
-
 export async function execute(member) {
   const guild = member.guild;
   const settings = getSettings(guild.id);
   bump(guild.id, "joins");
   await onMemberJoinRaidCheck(member);
-  const TARGET_INVITE = settings.invite_role_code || DEFAULT_INVITE;
-  const TARGET_ROLE = settings.invite_role || DEFAULT_INVITE_ROLE;
+  // Optional per-server: joining through invite_role_code gives invite_role
+  const TARGET_INVITE = settings.invite_role_code || null;
+  const TARGET_ROLE = settings.invite_role || null;
 
   // Work out which invite was used (its use count went up since we last cached it)
   let usedInvite = null;
@@ -32,7 +28,7 @@ export async function execute(member) {
       if (prev && inv.uses > prev.uses) { usedInvite = inv; break; }
     }
   } catch {}
-  if (usedInvite?.code === TARGET_INVITE) {
+  if (TARGET_INVITE && TARGET_ROLE && usedInvite?.code === TARGET_INVITE) {
     const role = guild.roles.cache.get(TARGET_ROLE) || guild.roles.cache.find((r) => r.name === TARGET_ROLE);
     if (role) await member.roles.add(role).catch(() => {});
   }
@@ -56,21 +52,9 @@ export async function execute(member) {
     ].filter(Boolean).join("\n"))
     .setFooter({ text: `ID: ${member.id}` }));
 
-  // Welcome message + image card
-  const welcomeChannel = resolveChannel(guild, "welcome_channel", ["welcome", "welcomes", "arrivals"]);
-  if (!welcomeChannel || settings.welcome_enabled === "false") return;
-  const text = (settings.welcome_message || "Welcome {user} to **{server}**!")
-    .replace(/{user}/g, `<@${member.id}>`)
-    .replace(/{server}/g, guild.name)
-    .replace(/{count}/g, String(guild.memberCount));
-  const payload = { content: text, allowedMentions: { users: [member.id] } };
-  if (settings.welcome_card !== "false") {
-    try {
-      const { renderWelcomeCard } = await import("../features/welcomeCard.js");
-      payload.files = [new AttachmentBuilder(await renderWelcomeCard(member), { name: "welcome.png" })];
-    } catch (err) {
-      console.error("welcome card failed:", err.message);
-    }
+  // Welcome message + image card (unless this server welcomes on verify instead)
+  if (settings.welcome_on !== "verify") {
+    const { postWelcome } = await import("../features/welcome.js");
+    await postWelcome(member);
   }
-  await welcomeChannel.send(payload).catch(() => {});
 }

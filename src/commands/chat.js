@@ -133,7 +133,8 @@ async function runChat(message, guildId, userId, messages, context, status) {
 
     let finalText = "";
     const actionsExecuted = [];
-    const MAX_TOOL_ROUNDS = 8;
+    // Long setups need many rounds; CHAT_MAX_ROUNDS in .env overrides.
+    const MAX_TOOL_ROUNDS = parseInt(process.env.CHAT_MAX_ROUNDS || "30", 10);
 
     const userMems = getUserMemories(userId);
     const globalMems = getGlobalMemories();
@@ -208,7 +209,7 @@ async function runChat(message, guildId, userId, messages, context, status) {
           toolResults.push({
             type: "tool_result",
             tool_use_id: toolBlock.id,
-            content: result.success ? `Success: ${result.message}` : `Error: ${result.message}`,
+            content: (result.success ? `Success: ${result.message}` : `Error: ${result.message}`).slice(0, 2500),
           });
         }
       }

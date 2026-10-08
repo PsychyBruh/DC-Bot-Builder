@@ -1,4 +1,13 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from "discord.js";
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, PermissionFlagsBits } from "discord.js";
+
+// Panels must never hand out a role with real power, no matter what the panel was configured with.
+const DANGEROUS = [
+  "Administrator", "ManageGuild", "ManageRoles", "ManageChannels", "KickMembers", "BanMembers", "ModerateMembers",
+  "ManageMessages", "ManageWebhooks", "MentionEveryone", "ManageNicknames", "ManageThreads", "ViewAuditLog", "MoveMembers", "MuteMembers", "DeafenMembers", "ManageEvents",
+].map((p) => PermissionFlagsBits[p]);
+export function isSafeSelfRole(role) {
+  return !!role && !DANGEROUS.some((b) => role.permissions.has(b, false));
+}
 import { baseEmbed, COLORS } from "../commands/utils/embeds.js";
 import { featureData, saveFeatures, resolveRole, canManageRole } from "./config.js";
 
@@ -18,6 +27,7 @@ export function parseRoleEntries(guild, text) {
     const role = id ? guild.roles.cache.get(id) : guild.roles.cache.find((r) => r.name.toLowerCase() === roleText.toLowerCase());
     if (!role) { errors.push(`role not found: \`${roleText}\``); continue; }
     if (!canManageRole(guild, role)) { errors.push(`I can't manage **${role.name}** (move my role above it)`); continue; }
+    if (!isSafeSelfRole(role)) { errors.push(`**${role.name}** has moderation/admin permissions — not allowed on a self-role panel`); continue; }
     out.push({ roleId: role.id, emoji, label: role.name });
   }
   return { entries: out, errors };
@@ -35,7 +45,7 @@ export async function postSelfRolePanel(channel, { mode, title, description, exc
     .setTitle(title)
     .setDescription(
       (description ? description + "\n\n" : "") +
-      entries.map((e) => `${e.emoji ? e.emoji + " " : "• "}<@&${e.roleId}>`).join("\n") +
+      entries.map((e) => `${e.emoji ? e.emoji + " " : "• "}<@&${e.roleId}>${e.description ? ` — ${e.description}` : ""}`).join("\n") +
       `\n\n*${mode === "reactions" ? "React" : mode === "dropdown" ? "Pick from the menu" : "Click a button"} to ${exclusive ? "choose one" : "add or remove roles"}.*`,
     );
   embed.data.timestamp = undefined;
@@ -48,17 +58,22 @@ export async function postSelfRolePanel(channel, { mode, title, description, exc
         return b;
       })));
     }
+    const clear = new ButtonBuilder().setCustomId("sr:clear").setLabel("Clear").setEmoji("🧹").setStyle(ButtonStyle.Secondary);
+    if (components.length && components[components.length - 1].components.length < 5) components[components.length - 1].addComponents(clear);
+    else if (components.length < 5) components.push(new ActionRowBuilder().addComponents(clear));
   } else if (mode === "dropdown") {
     const menu = new StringSelectMenuBuilder()
       .setCustomId("srsel")
       .setPlaceholder(exclusive ? "Choose one…" : "Choose any…")
       .setMinValues(0)
-      .setMaxValues(exclusive ? 1 : entries.length)
-      .addOptions(entries.map((e) => {
+      .setMaxValues(exclusive ? 1 : Math.min(25, entries.length + 1))
+      .addOptions(entries.slice(0, 24).map((e) => {
         const o = { label: e.label.slice(0, 100), value: e.roleId };
+        if (e.description) o.description = e.description.slice(0, 100);
         if (e.emoji) o.emoji = emojiForComponent(e.emoji);
         return o;
-      }));
+      }))
+      .addOptions({ label: "Clear", value: "__clear", description: "Remove all roles from this panel", emoji: "🧹" });
     components.push(new ActionRowBuilder().addComponents(menu));
   }
   const msg = await channel.send({ embeds: [embed], components });
@@ -89,6 +104,14 @@ export async function handleSelfRoleButton(interaction) {
   const roleId = interaction.customId.slice(3);
   const panel = featureData(interaction.guildId, "selfroles")[interaction.message.id];
   const member = interaction.member;
+  if (roleId === "clear") {
+    if (!panel) return interaction.reply({ content: "This panel is no longer active.", ephemeral: true });
+    return interaction.reply({ content: await applyChange(member, panel, []), ephemeral: true });
+  }
+  const role = interaction.guild.roles.cache.get(roleId);
+  if (!isSafeSelfRole(role) || (panel && !panel.entries.some((e) => e.roleId === roleId))) {
+    return interaction.reply({ content: "That role can't be self-assigned.", ephemeral: true });
+  }
   if (!panel) {
     // Panel made before tracking existed: plain toggle.
     const has = member.roles.cache.has(roleId);
@@ -106,8 +129,9 @@ export async function handleSelfRoleButton(interaction) {
 export async function handleSelfRoleSelect(interaction) {
   const panel = featureData(interaction.guildId, "selfroles")[interaction.message.id];
   if (!panel) return interaction.reply({ content: "This menu is no longer active.", ephemeral: true });
-  const allowed = new Set(panel.entries.map((e) => e.roleId));
-  const want = interaction.values.filter((v) => allowed.has(v));
+  const allowed = new Set(panel.entries.map((e) => e.roleId).filter((id) => isSafeSelfRole(interaction.guild.roles.cache.get(id))));
+  // "Clear" wins over anything else picked; otherwise selecting replaces this panel's roles
+  const want = interaction.values.includes("__clear") ? [] : interaction.values.filter((v) => allowed.has(v));
   const summary = await applyChange(interaction.member, panel, want);
   return interaction.reply({ content: summary, ephemeral: true });
 }
@@ -127,7 +151,7 @@ export async function handleReactionRole(reaction, user, added) {
   const panel = featureData(guild.id, "selfroles")[reaction.message.id];
   if (!panel || panel.mode !== "reactions") return;
   const entry = panel.entries.find((e) => matchEmoji(e.emoji, reaction.emoji));
-  if (!entry) return;
+  if (!entry || !isSafeSelfRole(guild.roles.cache.get(entry.roleId))) return;
   const member = await guild.members.fetch(user.id).catch(() => null);
   if (!member) return;
   try {

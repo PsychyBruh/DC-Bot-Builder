@@ -7,7 +7,9 @@ export async function execute(ban) {
   const audit = await findExecutor(ban.guild, AuditLogEvent.MemberBanAdd, ban.user.id);
   if (audit?.executor) {
     const { recordDestructive } = await import("../features/safety.js");
-    await recordDestructive(ban.guild, audit.executor, "ban");
+    await recordDestructive(ban.guild, audit.executor, "ban", `banned ${ban.user.tag}`);
+    const { bumpMap } = await import("../features/stats.js");
+    bumpMap(ban.guild.id, "modActions", `${audit.executor.id}:ban`);
   }
   await logMod(ban.guild, baseEmbed(COLORS.danger)
     .setTitle("🔨 Member banned")

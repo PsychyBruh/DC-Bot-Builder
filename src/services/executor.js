@@ -1,4 +1,5 @@
 import { FEATURE_TOOLS } from "../features/aiTools.js";
+const lastSnapshot = new Map();
 import { ChannelType, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import { setSetting, removeSetting, getSettings } from "../storage/serverSettings.js";
 import { registerButtonAction } from "../storage/buttonActions.js";
@@ -414,6 +415,11 @@ export async function executeAction(guild, action, params, force = false, userId
   // Server feature configuration tools (tickets, panels, ranks, safety settings, Roblox…)
   const { isFeatureTool, executeFeatureTool } = await import("../features/aiTools.js");
   if (isFeatureTool(action)) return executeFeatureTool(guild, action, params || {});
+  // Snapshot before any change made through the AI (throttled), so anti-nuke can restore
+  if (/^(create|edit|delete|set)_/.test(action) && Date.now() - (lastSnapshot.get(guild.id) || 0) > 30_000) {
+    lastSnapshot.set(guild.id, Date.now());
+    try { const { takeSnapshot } = await import("../features/snapshots.js"); takeSnapshot(guild); } catch {}
+  }
   if (!force && isDestructive(action)) {
     return { success: true, needsConfirmation: true, action, params, message: `This action (${action}) requires your confirmation. Reply with "yes" or "confirm" to proceed.` };
   }

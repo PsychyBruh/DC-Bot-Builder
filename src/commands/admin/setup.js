@@ -17,6 +17,7 @@ export function normalizeSettingValue(key, raw, mentions = {}) {
   if (def.type === "channel") return mentions.channel || raw.replace(/^<#(\d+)>$/, "$1").replace(/^#/, "");
   if (def.type === "role") return mentions.role || raw.replace(/^<@&(\d+)>$/, "$1").replace(/^@/, "");
   if (def.type === "toggle") return /^(on|true|yes|enable|enabled|1)$/i.test(raw) ? "true" : "false";
+  if (def.type === "rolelist") return raw.split(",").map((s) => s.trim().replace(/^<@&(\d+)>$/, "$1").replace(/^@/, "")).filter(Boolean).join(",");
   if (def.type === "list") return raw.split(/[,\s]+/).map((s) => s.replace(/^<#(\d+)>$/, "$1").replace(/^#/, "")).filter(Boolean).join(",");
   return raw;
 }

@@ -1,6 +1,6 @@
 import { baseEmbed, COLORS } from "../utils/embeds.js";
 import { startLockdown, endLockdown, raidState } from "../../features/safety.js";
-import { isStaff } from "../../features/config.js";
+import { memberAllowed } from "../../features/config.js";
 
 export const name = "raid";
 export const description = "Turn raid lockdown on/off manually, or check its status";
@@ -8,7 +8,7 @@ export const usage = "!raid on|off|status";
 export const category = "mod";
 
 export async function execute(message, args) {
-  if (!isStaff(message.member)) return message.reply("Staff only.");
+  if (!memberAllowed(message.member, null, "raid_command_role")) return message.reply("You can't control raid mode.");
   const sub = (args[0] || "status").toLowerCase();
   if (sub === "on") {
     const ok = await startLockdown(message.guild, "manual", message.author);

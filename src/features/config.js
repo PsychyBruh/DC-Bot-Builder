@@ -82,12 +82,50 @@ export function resolveRole(guild, settingKey, defaults = []) {
   return null;
 }
 
+// "Staff" = the staff_role and every role above it (or any role in staff_roles), plus Administrator/Manage Server.
 export function isStaff(member) {
   if (!member) return false;
   if (member.permissions?.has(PermissionFlagsBits.Administrator)) return true;
   if (member.permissions?.has(PermissionFlagsBits.ManageGuild)) return true;
-  const staff = resolveRole(member.guild, "staff_role", ["staff", "moderator", "mod"]);
-  return !!(staff && member.roles?.cache?.has(staff.id));
+  if (memberHasAny(member, "staff_roles")) return true;
+  return memberAtLeast(member, "staff_role", ["staff", "moderator", "mod"]);
+}
+
+// Member's highest role is at or above the role in `settingKey` (e.g. "Senior Moderator and above").
+export function memberAtLeast(member, settingKey, defaults = []) {
+  if (!member?.roles) return false;
+  if (member.permissions?.has(PermissionFlagsBits.Administrator)) return true;
+  const role = resolveRole(member.guild, settingKey, defaults);
+  if (!role) return false;
+  return member.roles.cache.has(role.id) || member.roles.highest.position >= role.position;
+}
+
+// Comma-separated role list setting → roles
+export function resolveRoles(guild, settingKey, defaults = []) {
+  if (!guild) return [];
+  const raw = getSettings(guild.id)[settingKey];
+  const names = raw ? String(raw).split(",").map((x) => x.trim().replace(/^<@&(\d+)>$/, "$1").replace(/^@/, "")).filter(Boolean) : defaults;
+  const out = [];
+  for (const n of names) {
+    const r = guild.roles.cache.get(n) || guild.roles.cache.find((x) => x.name === n) || guild.roles.cache.find((x) => normalize(x.name) === normalize(n));
+    if (r && !out.includes(r)) out.push(r);
+  }
+  return out;
+}
+
+export function memberHasAny(member, settingKey, defaults = []) {
+  if (!member?.roles) return false;
+  return resolveRoles(member.guild, settingKey, defaults).some((r) => member.roles.cache.has(r.id));
+}
+
+// Allowed if Administrator, or in the role list setting, or at/above the "min" role setting.
+export function memberAllowed(member, listKey, minKey, { staffFallback = true } = {}) {
+  if (!member) return false;
+  if (member.permissions?.has(PermissionFlagsBits.Administrator)) return true;
+  const g = getSettings(member.guild.id);
+  if (listKey && g[listKey]) return memberHasAny(member, listKey) || (minKey && g[minKey] ? memberAtLeast(member, minKey) : false);
+  if (minKey && g[minKey]) return memberAtLeast(member, minKey);
+  return staffFallback ? isStaff(member) : false;
 }
 
 // Roles the bot can't manage (above its own highest role, managed, @everyone) fail silently otherwise.

@@ -1,6 +1,8 @@
+import { EXTRA_SETTING_KEYS } from "./settingsKeysExtra.js";
+
 // Every per-server setting the features read. Shared by !setup and the !chat AI tools, so a
 // server owner can configure everything by just telling the AI what they want.
-// type: channel | role | number | toggle | text | list (comma-separated channel names/IDs)
+// type: channel | role | number | toggle | text | list (comma-separated channel names/IDs) | rolelist (comma-separated roles)
 // Channels/roles not set fall back to the default names listed in `fallback`.
 export const SETTING_KEYS = {
   // --- core / roles ---
@@ -19,7 +21,7 @@ export const SETTING_KEYS = {
   auto_role:             { type: "role",    group: "Welcome",     desc: "Role given to everyone on join" },
   verify_role:           { type: "role",    group: "Verify",      fallback: "verified, member", desc: "Role the Verify button gives" },
   unverified_role:       { type: "role",    group: "Verify",      desc: "Role given on join and removed on verify" },
-  min_account_age_days:  { type: "number",  group: "Verify",      desc: "Discord accounts younger than this can't verify yet (default 3, 0 = off)" },
+  min_account_age_days:  { type: "number",  group: "Verify",      desc: "Discord accounts younger than this can't verify yet — see verify_young_action (default 3, 0 = off)" },
   verify_mode:           { type: "text",    group: "Verify",      desc: "button | captcha (default) | roblox (captcha + linked Roblox account)" },
   verify_rules_question: { type: "text",    group: "Verify",      desc: "Optional question asked during verification, e.g. 'Where do you report bugs?'" },
   verify_rules_answer:   { type: "text",    group: "Verify",      desc: "Accepted answer(s) to the rules question, comma-separated" },
@@ -88,6 +90,8 @@ export const SETTING_KEYS = {
   github_repo:           { type: "text",    group: "Roblox",      desc: "owner/repo to open issues for confirmed bugs (needs GITHUB_TOKEN in .env)" },
   sotw_channel:          { type: "channel", group: "Roblox",      fallback: "screenshots", desc: "Screenshot of the Week source channel" },
 };
+
+Object.assign(SETTING_KEYS, EXTRA_SETTING_KEYS);
 
 export function describeSettings() {
   return Object.entries(SETTING_KEYS).map(([k, v]) => `${k} (${v.type}): ${v.desc}`).join("\n");

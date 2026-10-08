@@ -93,6 +93,11 @@ async function grant(interaction, role) {
   const unverified = resolveRole(interaction.guild, "unverified_role", ["unverified"]);
   if (unverified && member.roles.cache.has(unverified.id)) await member.roles.remove(unverified).catch(() => {});
   pending.delete(`${interaction.guildId}:${member.id}`);
+  const { bump } = await import("./stats.js");
+  bump(interaction.guildId, "verifications");
+  const { postWelcome, sendWelcomeDm } = await import("./welcome.js");
+  if (getSettings(interaction.guildId).welcome_on === "verify") postWelcome(member).catch(() => {});
+  sendWelcomeDm(member).catch(() => {});
   const { logJoinLeave } = await import("./logging.js");
   logJoinLeave(interaction.guild, baseEmbed(COLORS.success).setTitle("✅ Member verified").setDescription(`${member} (${member.user.tag})`));
 }
@@ -118,6 +123,11 @@ export async function handleVerifyButton(interaction) {
   const minDays = settingNum(guild.id, "min_account_age_days", 3);
   const readyAt = member.user.createdTimestamp + minDays * 86400000;
   if (minDays > 0 && Date.now() < readyAt) {
+    if ((s.verify_young_action || "wait") === "review") {
+      const { requestAltApproval } = await import("./safety.js");
+      const sent = await requestAltApproval(member);
+      return interaction.reply({ content: sent ? "🕵️ Your account is too new — a staff member will check you shortly." : "⏳ You're already in the review queue — a staff member will check you shortly.", ephemeral: true });
+    }
     return interaction.reply({ content: `🕒 Your Discord account is too new to verify here. You can verify <t:${Math.floor(readyAt / 1000)}:R> (accounts must be ${minDays}+ days old).`, ephemeral: true });
   }
 
@@ -130,7 +140,10 @@ export async function handleVerifyButton(interaction) {
     return interaction.reply({ content: `⏳ Please read the rules first — you can verify <t:${Math.floor(at / 1000)}:R>.`, ephemeral: true });
   }
 
-  const mode = (s.verify_mode || "captcha").toLowerCase();
+  let mode = (s.verify_mode || "captcha").toLowerCase();
+  // captcha_below_days: only younger accounts get the captcha, older ones just click
+  const captchaBelow = settingNum(guild.id, "captcha_below_days", 0);
+  if (mode === "captcha" && captchaBelow > 0 && Date.now() - member.user.createdTimestamp >= captchaBelow * 86400000) mode = "button";
   if (mode === "button" && !risky && !s.verify_rules_question) {
     await grant(interaction, role);
     return interaction.reply({ content: `✅ Verified! You now have **${role.name}**.`, ephemeral: true });

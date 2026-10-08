@@ -1,5 +1,6 @@
 import { baseEmbed, COLORS } from "../commands/utils/embeds.js";
-import { logMod, findExecutor, AuditLogEvent } from "../features/logging.js";
+import { logMod, logJoinLeave, findExecutor, AuditLogEvent } from "../features/logging.js";
+import { bumpMap } from "../features/stats.js";
 
 export const name = "guildMemberUpdate";
 
@@ -13,6 +14,7 @@ export async function execute(oldMember, newMember) {
   if (was !== now) {
     const audit = await findExecutor(guild, AuditLogEvent.MemberUpdate, newMember.id);
     const on = now > Date.now();
+    if (on && audit?.executor && audit.executor.id !== guild.members.me?.id) bumpMap(guild.id, "modActions", `${audit.executor.id}:timeout`);
     await logMod(guild, baseEmbed(on ? COLORS.warning : COLORS.success)
       .setTitle(on ? "🔇 Member timed out" : "🔊 Timeout removed")
       .setDescription(`**User:** ${newMember} (${newMember.user.tag})${on ? `\n**Until:** <t:${Math.floor(now / 1000)}:F>` : ""}\n**By:** ${audit?.executor ? `${audit.executor}` : "unknown"}\n**Reason:** ${audit?.reason || "none given"}`)
@@ -37,7 +39,7 @@ export async function execute(oldMember, newMember) {
 
   // Nickname
   if (oldMember.nickname !== newMember.nickname) {
-    await logMod(guild, baseEmbed(COLORS.info)
+    await logJoinLeave(guild, baseEmbed(COLORS.info)
       .setTitle("✏️ Nickname changed")
       .setDescription(`**User:** ${newMember}\n**Before:** ${oldMember.nickname || "*none*"}\n**After:** ${newMember.nickname || "*none*"}`));
   }

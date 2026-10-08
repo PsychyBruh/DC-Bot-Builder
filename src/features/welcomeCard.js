@@ -88,7 +88,8 @@ export async function renderWelcomeCard(member) {
 
   ctx.fillStyle = "#c9c9d6";
   ctx.font = "28px Poppins";
-  ctx.fillText(`Member #${member.guild.memberCount.toLocaleString()} of ${member.guild.name}`.slice(0, 60), tx, 290);
+  const sub = (settings.welcome_card_subtitle || "Member #{count} of {server}").replace(/{count}/g, member.guild.memberCount.toLocaleString()).replace(/{server}/g, member.guild.name);
+  ctx.fillText(sub.slice(0, 60), tx, 290);
 
   return canvas.toBuffer("image/png");
 }

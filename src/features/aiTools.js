@@ -12,7 +12,7 @@ export const FEATURE_TOOLS = [
     input_schema: {
       type: "object",
       properties: {
-        settings: { type: "object", description: "Map of setting key → value, e.g. {\"verify_role\":\"Drifter\",\"mod_log_channel\":\"mod-log\",\"raid_join_threshold\":\"10\"}", additionalProperties: { type: "string" } },
+        settings: { type: "object", description: "Map of setting key → value, e.g. {\"verify_role\":\"Member\",\"mod_log_channel\":\"mod-log\",\"raid_join_threshold\":\"10\"}", additionalProperties: { type: "string" } },
       },
       required: ["settings"],
     },
@@ -35,7 +35,7 @@ export const FEATURE_TOOLS = [
         title: S("roles only: panel title, e.g. 'Platform'"),
         description: S("roles only: optional text above the list"),
         single_choice: { type: "boolean", description: "roles only: members can only hold one role from this panel (e.g. region)" },
-        roles: { type: "array", description: "roles only: roles on the panel", items: { type: "object", properties: { role: S("Role name or ID"), emoji: S("Emoji (required for reactions mode)") }, required: ["role"] } },
+        roles: { type: "array", description: "roles only: roles on the panel (self/ping/cosmetic roles only — roles with mod/admin permissions are refused)", items: { type: "object", properties: { role: S("Role name or ID"), emoji: S("Emoji (required for reactions mode)"), description: S("Optional one-line description (dropdown)") }, required: ["role"] } },
       },
       required: ["type", "channel"],
     },
@@ -48,6 +48,13 @@ export const FEATURE_TOOLS = [
       properties: {
         categories: { type: "array", items: { type: "object", properties: {
           key: S("short id, e.g. support"), label: S("Display name"), emoji: S("Emoji"), description: S("One-line description"), prompt: S("Question shown in the form, e.g. 'What do you need help with?'"),
+          viewer_roles: { type: "array", items: { type: "string" }, description: "Extra roles that see this ticket type" },
+          open_role: S("Role given while this ticket is open (e.g. Tester Applicant)"),
+          form: { type: "array", maxItems: 5, items: { type: "object", properties: { question: S("max 45 chars"), long: { type: "boolean" } } }, description: "Application form questions (shown instead of prompt)" },
+          review_channel: S("Applications: channel that gets an Accept/Deny copy"),
+          review_roles: { type: "array", items: { type: "string" } }, accept_add_roles: { type: "array", items: { type: "string" } },
+          accept_remove_roles: { type: "array", items: { type: "string" } }, deny_remove_roles: { type: "array", items: { type: "string" } },
+          requires_link: { type: "boolean", description: "Needs a linked Roblox account" },
         }, required: ["key", "label"] } },
       },
       required: ["categories"],
@@ -150,6 +157,7 @@ export async function executeFeatureTool(guild, name, p) {
         if (def?.type === "channel") { const c = findChannel(guild, value); if (!c) { problems.push(`${key}: channel "${value}" not found`); continue; } value = c.id; }
         else if (def?.type === "role") { const r = findRole(guild, value); if (!r) { problems.push(`${key}: role "${value}" not found`); continue; } value = r.id; }
         else if (def?.type === "toggle") value = /^(on|true|yes|enable|enabled|1)$/i.test(value) ? "true" : "false";
+        else if (def?.type === "rolelist") { const rs = value.split(",").map((v) => v.trim()).filter(Boolean).map((v) => ({ v, r: findRole(guild, v) })); rs.filter((x) => !x.r).forEach((x) => problems.push(`${key}: role "${x.v}" not found`)); value = rs.filter((x) => x.r).map((x) => x.r.id).join(","); }
         else if (def?.type === "list") value = value.split(/[,\s]+/).map((v) => findChannel(guild, v)?.id || v.replace(/^#/, "")).filter(Boolean).join(",");
         else if (def?.type === "number" && !Number.isFinite(parseFloat(value))) { problems.push(`${key}: not a number`); continue; }
         setSetting(guild.id, key, value);
@@ -186,13 +194,14 @@ export async function executeFeatureTool(guild, name, p) {
       if (p.type === "tickets") { const { postTicketPanel } = await import("./tickets.js"); await postTicketPanel(ch); return ok(`Ticket panel posted in #${ch.name}`); }
       if (p.type === "applications") { const { postApplicationPanel } = await import("./applications.js"); await postApplicationPanel(ch); return ok(`Application panel posted in #${ch.name}`); }
       if (p.type === "roles") {
-        const { postSelfRolePanel } = await import("./roles.js");
+        const { postSelfRolePanel, isSafeSelfRole } = await import("./roles.js");
         const entries = [], problems = [];
         for (const r of p.roles || []) {
           const role = findRole(guild, r.role);
           if (!role) { problems.push(`role "${r.role}" not found`); continue; }
           if (!canManageRole(guild, role)) { problems.push(`can't manage ${role.name}`); continue; }
-          entries.push({ roleId: role.id, emoji: r.emoji || null, label: role.name });
+          if (!isSafeSelfRole(role)) { problems.push(`${role.name} has mod/admin permissions — refused`); continue; }
+          entries.push({ roleId: role.id, emoji: r.emoji || null, label: role.name, description: r.description || null });
         }
         if (!entries.length) return fail(`No usable roles. ${problems.join("; ")}`);
         const mode = p.mode || "buttons";
@@ -204,8 +213,18 @@ export async function executeFeatureTool(guild, name, p) {
     }
     case "set_ticket_categories": {
       const types = {};
+      const roleIds = (list) => (list || []).map((n) => findRole(guild, n)?.id).filter(Boolean);
       for (const c of (p.categories || []).slice(0, 25)) {
-        types[String(c.key).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || `t${Object.keys(types).length}`] = { label: c.label.slice(0, 80), emoji: c.emoji || "🎫", desc: (c.description || c.label).slice(0, 100), prompt: (c.prompt || "Describe your request").slice(0, 100) };
+        const key = String(c.key).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20) || `t${Object.keys(types).length}`;
+        const review = c.review_channel ? findChannel(guild, c.review_channel) : null;
+        types[key] = {
+          label: c.label.slice(0, 80), emoji: c.emoji || "🎫", desc: (c.description || c.label).slice(0, 100), prompt: (c.prompt || "Describe your request").slice(0, 100),
+          viewer_roles: roleIds(c.viewer_roles), open_role: c.open_role ? findRole(guild, c.open_role)?.id || null : null,
+          form: (c.form || []).slice(0, 5).map((q, i) => [`q${i}`, String(q.question || q).slice(0, 45), q.long ? "paragraph" : "short"]),
+          review_channel: review?.id || null, review_roles: roleIds(c.review_roles),
+          accept_add_roles: roleIds(c.accept_add_roles), accept_remove_roles: roleIds(c.accept_remove_roles), deny_remove_roles: roleIds(c.deny_remove_roles),
+          requires_link: !!c.requires_link,
+        };
       }
       featureData(guild.id, "ticketConfig", {}).types = types;
       saveFeatures();

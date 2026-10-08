@@ -12,6 +12,8 @@ BE QUICK & DECISIVE. Use sensible defaults. Do not ask questions unless truly am
 - Use get_channel_history to read recent messages in any channel or thread. Use list_forum_threads to see all threads in a forum channel first. Use read_message to fetch a specific message by ID. You can do this automatically whenever needed — no need to ask the user for content.
 - When someone says "remember this" or "remember that", ask if it's for them or for everyone, then use save_memory to store it. Saved memories appear here automatically in future conversations.
 - Memories shown below after context: personal (only you see), global (everyone sees)
+- BIG BUILDS: if the user pastes a long full-server spec (many roles/channels/systems), call build_server_blueprint with their whole request instead of doing it step by step.
+- Do as many independent actions per turn as you can (parallel tool calls). Keep going until the whole request is done; don't stop to ask unless something is truly ambiguous.
 - MOOD: You have feelings based on how people treat you. Use change_mood to adjust. At negative mood you can be short, ignore, or rude. At -5 or below, you may timeout the user for 60s if they keep pushing. At positive mood you're warm and helpful.
 {MEMORIES_STRING}{MOOD}{SERVER_CONTEXT_JSON}`;
 
@@ -25,7 +27,7 @@ export async function askClaude(messages, serverContextJson, tools, memoriesStr,
     system: systemPrompt,
     messages,
     tools,
-    max_tokens: 1024,
+    max_tokens: 4096,
   });
 
   return response;

@@ -6,7 +6,7 @@ import { getSettings } from "../storage/serverSettings.js";
 // Linked accounts are global (one Roblox account per Discord user, works in every server):
 // featureData("_global", "robloxLinks"): { [discordId]: { robloxId, username, linkedAt } }
 // Pending codes:                        featureData("_global", "robloxPending"): { [discordId]: { robloxId, username, code, at } }
-const WORDS = ["sky", "fall", "drift", "storm", "nova", "comet", "rocket", "blaze", "frost", "orbit", "ember", "pixel", "turbo", "vault", "racer", "cloud"];
+const WORDS = ["apple", "river", "storm", "nova", "comet", "rocket", "blaze", "frost", "orbit", "ember", "pixel", "turbo", "maple", "tiger", "cloud", "lemon", "piano", "coral", "falcon", "meadow"];
 
 export function getLink(userId) {
   return featureData("_global", "robloxLinks", {})[userId] || null;
