@@ -167,7 +167,8 @@ async function runChat(message, guildId, userId, messages, context, status) {
         const paramsSummary = Object.entries(toolBlock.input).map(([k, v]) => `${k}: ${v}`).join(", ");
         const truncated = paramsSummary.length > 200 ? paramsSummary.slice(0, 200) + "..." : paramsSummary;
         await status.edit({ content: `*executing ${actionLabel} â€” ${truncated}*` });
-        if (requiresVote(toolBlock.name, toolBlock.input)) {
+        // The server owner doesn't need other admins to approve big actions
+        if (message.author.id !== message.guild.ownerId && requiresVote(toolBlock.name, toolBlock.input)) {
           setPendingVote(guildId, toolBlock.name, toolBlock.input, toolBlock.id, 2);
           await status.edit({ content: `*${actionLabel} â€” requires 2 admin approvals. Other admins can type !chat yes to approve.*` });
           toolResults.push({
