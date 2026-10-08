@@ -101,7 +101,8 @@ export async function createMessage({ system, messages, tools, max_tokens = 1024
   // GPT-5 / o-series take max_completion_tokens (which includes reasoning tokens)
   if (isReasoning) {
     // Reasoning tokens count against this limit, so leave headroom on top of the visible reply
-    body.max_completion_tokens = max_tokens + 2000;
+    // (only used tokens are billed, so a generous cap costs nothing extra)
+    body.max_completion_tokens = max_tokens + 12000;
     body.reasoning_effort = process.env.AI_REASONING || "low";
   } else {
     body.max_tokens = max_tokens;
@@ -129,6 +130,10 @@ export async function createMessage({ system, messages, tools, max_tokens = 1024
 
   const choice = data.choices?.[0] ?? {};
   const msg = choice.message ?? {};
+  // Ran out of tokens before writing anything (usually reasoning on a big prompt) — retry once with a bigger cap.
+  if (!msg.content && !msg.tool_calls?.length && choice.finish_reason === "length" && !arguments[0]._retried) {
+    return createMessage({ ...arguments[0], max_tokens: max_tokens * 3, _retried: true });
+  }
   const content = [];
   if (msg.content) content.push({ type: "text", text: msg.content });
   for (const tc of msg.tool_calls ?? []) {

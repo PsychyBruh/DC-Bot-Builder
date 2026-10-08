@@ -132,6 +132,7 @@ async function runChat(message, guildId, userId, messages, context, status) {
     const tools = getDiscordTools();
 
     let finalText = "";
+    let lastStop = null;
     const actionsExecuted = [];
     // Long setups need many rounds; CHAT_MAX_ROUNDS in .env overrides.
     const MAX_TOOL_ROUNDS = parseInt(process.env.CHAT_MAX_ROUNDS || "30", 10);
@@ -148,6 +149,7 @@ async function runChat(message, guildId, userId, messages, context, status) {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const response = await askClaude(messages, contextJson, tools, memoriesStr, moodStr);
 
+      lastStop = response.stopReason;
       const textBlocks = response.content.filter((b) => b.type === "text");
       const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
 
@@ -229,7 +231,9 @@ async function runChat(message, guildId, userId, messages, context, status) {
 
     const content = (actionsExecuted.length > 0
       ? finalText || `Executed ${actionsExecuted.length} action(s).`
-      : finalText || "No response received.") + (actionsExecuted.length > 0
+      : finalText || (lastStop === "length"
+        ? "The AI ran out of room before answering (the file may be too big). Try a shorter file, or for a full server spec use `!blueprint`."
+        : `No response received${lastStop ? ` (stop reason: ${lastStop})` : ""}.`)) + (actionsExecuted.length > 0
         ? "\n" + actionsExecuted.map((r) => `${r.success ? "OK" : "FAIL"}: ${r.message}`).join("\n")
         : "");
 
