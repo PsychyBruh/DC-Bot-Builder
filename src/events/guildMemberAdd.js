@@ -33,9 +33,11 @@ export async function execute(member) {
     if (role) await member.roles.add(role).catch(() => {});
   }
 
-  // Auto roles
+  // Auto roles (never hand out the verified role on join — that would skip verification)
+  const verifiedRole = settings.verify_role ? resolveRole(guild, "verify_role", []) : null;
   for (const key of ["auto_role", "member_role", "unverified_role"]) {
     const role = settings[key] ? resolveRole(guild, key, []) : null;
+    if (role && verifiedRole && role.id === verifiedRole.id) continue;
     if (role) await member.roles.add(role).catch(() => {});
   }
 
